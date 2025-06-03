@@ -26,3 +26,46 @@ p {
   font-size: 1.2rem;
   line-height: 1.6;
 }
+
+/* ❤️ Coração animado */
+.heart {
+  width: 100px;
+  height: 100px;
+  background-color: red;
+  position: relative;
+  transform: rotate(-45deg);
+  animation: pulse 1s infinite;
+  margin: 30px auto 0;
+}
+
+.heart::before,
+.heart::after {
+  content: "";
+  width: 100px;
+  height: 100px;
+  background-color: red;
+  border-radius: 50%;
+  position: absolute;
+}
+
+.heart::before {
+  top: -50px;
+  left: 0;
+}
+
+.heart::after {
+  left: 50px;
+  top: 0;
+}
+
+@keyframes pulse {
+  0% {
+    transform: rotate(-45deg) scale(1);
+  }
+  50% {
+    transform: rotate(-45deg) scale(1.2);
+  }
+  100% {
+    transform: rotate(-45deg) scale(1);
+  }
+}
