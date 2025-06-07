@@ -1,3 +1,3 @@
-window.onload = function() {
-  alert("Djully, bem-vinda ao nosso site romântico! ❤️");
-};
+function mostrarMensagem() {
+  alert("Você é especial! Nunca se esqueça disso 💘");
+}
