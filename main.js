@@ -1,5 +1,5 @@
 function mostrarMensagem() {
   const mensagem = document.getElementById("mensagem");
-  mensagem.textContent = "Você é a razão do meu sorriso todos os dias. Te amo mais do que palavras podem dizer. ❤️ Feliz Dia dos Namorados!";
+  mensagem.textContent = "Djully, cada segundo ao seu lado é um presente. Te amo com todo meu coração. Feliz Dia dos Namorados! 💖";
   mensagem.classList.remove("oculto");
 }

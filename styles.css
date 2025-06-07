@@ -4,7 +4,6 @@ body {
   background: linear-gradient(to bottom right, #ffe6e6, #ffccf2);
   color: #880e4f;
   text-align: center;
-  padding: 0;
 }
 
 header {
@@ -15,11 +14,10 @@ header {
 
 h1 {
   font-size: 40px;
-  margin: 0;
 }
 
 main {
-  padding: 40px 20px;
+  padding: 30px 20px;
 }
 
 button {
@@ -54,6 +52,14 @@ button:hover {
 footer {
   background-color: #ffe6f0;
   padding: 20px;
-  margin-top: 60px;
-  font-size: 14px;
+  margin-top: 40px;
+}
+
+.foto-casal {
+  width: 250px;
+  height: 250px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid #ff4081;
+  margin-bottom: 20px;
 }
