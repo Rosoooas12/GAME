@@ -1,27 +1,29 @@
 body {
   margin: 0;
-  font-family: 'Comic Sans MS', cursive, sans-serif;
-  background: linear-gradient(to bottom right, #ffe6e6, #ffd6f9);
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(to bottom right, #ffe6e6, #ffccf2);
   color: #880e4f;
   text-align: center;
+  padding: 0;
 }
 
 header {
-  background-color: #f8bbd0;
-  padding: 50px 20px;
+  background-color: #ff99c8;
+  padding: 40px 20px;
+  color: white;
 }
 
 h1 {
-  font-size: 48px;
+  font-size: 40px;
+  margin: 0;
 }
 
-p {
-  font-size: 20px;
+main {
+  padding: 40px 20px;
 }
 
 button {
-  margin-top: 40px;
-  padding: 14px 28px;
+  padding: 15px 30px;
   font-size: 18px;
   background-color: #ff4081;
   color: white;
@@ -32,11 +34,26 @@ button {
 }
 
 button:hover {
-  background-color: #f50057;
+  background-color: #e91e63;
+}
+
+#mensagem {
+  margin-top: 30px;
+  font-size: 22px;
+  color: #d81b60;
+  font-weight: bold;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.oculto {
+  display: none;
 }
 
 footer {
-  margin-top: 60px;
+  background-color: #ffe6f0;
   padding: 20px;
-  background-color: #fce4ec;
+  margin-top: 60px;
+  font-size: 14px;
 }
