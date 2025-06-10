@@ -1,5 +1,11 @@
-function mostrarMensagem() {
-  const mensagem = document.getElementById("mensagem");
-  mensagem.textContent = "Djully, cada segundo ao seu lado é um presente. Te amo com todo meu coração. Feliz Dia dos Namorados! 💖";
-  mensagem.classList.remove("oculto");
-}
+document.addEventListener('DOMContentLoaded', () => {
+    const revealButton = document.getElementById('revealButton');
+    const secretMessage = document.getElementById('secretMessage');
+
+    if (revealButton && secretMessage) {
+        revealButton.addEventListener('click', () => {
+            secretMessage.classList.remove('hidden'); // Remove a classe 'hidden' para mostrar a mensagem
+            revealButton.style.display = 'none'; // Esconde o botão após clicar
+        });
+    }
+});
