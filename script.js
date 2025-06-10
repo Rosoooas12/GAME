@@ -215,7 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Funções para Destacar Casas ---
     function highlightValidMoves(validMoves) {
         validMoves.forEach(move => {
-            const targetSquare = document.getElementById(`sq-${move.r}-${move.c}`);
+            // CORREÇÃO AQUI: Usando concatenação de strings em vez de template literals
+            const targetSquare = document.getElementById('sq-' + move.r + '-' + move.c);
             if (targetSquare) {
                 targetSquare.classList.add('highlight-move');
             }
@@ -236,8 +237,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = Math.floor(i / 8);
         const col = i % 8;
 
-        // CORREÇÃO AQUI: Use ${} para interpolação de strings
-        square.id = `sq-${row}-${col}`;
+        // CORREÇÃO AQUI: Usando concatenação de strings em vez de template literals
+        square.id = 'sq-' + row + '-' + col;
 
         if ((row + col) % 2 === 0) {
             square.classList.add('light');
@@ -272,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if ((isWhiteTurn && pieceColor === 'white') || (!isWhiteTurn && pieceColor === 'black')) {
                     selectedSquare = { element: squareElement, row: row, col: col, piece: pieceInSquare };
                     squareElement.classList.add('selected');
-                    
+
                     const validMoves = getValidMovesForPiece(row, col);
                     highlightValidMoves(validMoves);
                     console.log(`Peça selecionada: ${pieceInSquare} na casa ${row},${col}. Movimentos válidos:`, validMoves);
@@ -312,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (isBlackPiece(selectedSquare.piece)) {
                         squareElement.classList.add('black-piece');
                     }
-                    
+
                     selectedSquare = null;
                     clearHighlights();
                     isWhiteTurn = !isWhiteTurn;
