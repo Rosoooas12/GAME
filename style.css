@@ -26,6 +26,11 @@ h1 {
     width: 60px;
     height: 60px;
     box-sizing: border-box; /* Garante que padding e borda não aumentem o tamanho total */
+    display: flex; /* Para centralizar o conteúdo (peças) */
+    align-items: center; /* Centraliza verticalmente */
+    justify-content: center; /* Centraliza horizontalmente */
+    font-size: 40px; /* Tamanho da fonte para as peças */
+    font-weight: bold; /* Deixa o símbolo mais "gordinho" */
 }
 
 /* Cores das casas baseadas nas classes adicionadas pelo JavaScript */
@@ -35,15 +40,9 @@ h1 {
 
 .square.dark {
     background-color: #b58863; /* Cor escura (marrom) */
-}/* Estilo para as peças de xadrez (símbolos Unicode) */
-.square {
-    display: flex;
-    align-items: center; /* Centraliza verticalmente o conteúdo */
-    justify-content: center; /* Centraliza horizontalmente o conteúdo */
-    font-size: 40px; /* Tamanho da fonte para as peças */
-    font-weight: bold; /* Deixa o símbolo mais "gordinho" */
 }
 
+/* Estilo para as cores das peças (símbolos Unicode) */
 .white-piece {
     color: #fff; /* Cor para as peças brancas (um branco puro) */
     text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Sombra para destacá-las */

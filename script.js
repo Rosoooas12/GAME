@@ -32,10 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const piece = initialBoard[row][col];
         if (piece) {
             square.textContent = piece; // Define o símbolo da peça como texto da casa
-            // Adiciona uma classe para estilizar as peças (opcional, faremos no CSS)
-            if (row < 2) { // Peças pretas estão nas duas primeiras linhas
+            // Adiciona uma classe para estilizar as peças (cores)
+            if (row < 2) { // Peças pretas estão nas duas primeiras linhas (0 e 1)
                 square.classList.add('black-piece');
-            } else if (row > 5) { // Peças brancas estão nas duas últimas linhas
+            } else if (row > 5) { // Peças brancas estão nas duas últimas linhas (6 e 7)
                 square.classList.add('white-piece');
             }
         }
