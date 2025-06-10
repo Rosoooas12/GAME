@@ -1,21 +1,35 @@
 document.addEventListener('DOMContentLoaded', () => {
     const chessboard = document.getElementById('chessboard');
     const newGameButton = document.getElementById('new-game-button');
+    const difficultySelect = document.getElementById('difficulty-select'); // Novo elemento
     const whiteTimerDisplay = document.getElementById('white-timer');
     const blackTimerDisplay = document.getElementById('black-timer');
     const turnIndicator = document.getElementById('turn-indicator');
     let selectedSquare = null;
 
-    // --- VARIÁVEL PARA O AUDIOCTX E FUNÇÕES DE SOM (WEB AUDIO API) ---
+    // --- INSTÂNCIA DA BIBLIOTECA CHESS.JS ---
+    const chessGame = new Chess();
+
+    // --- CONFIGURAÇÃO DO BOT ---
+    const botColor = 'black'; // O bot sempre jogará com as peças pretas
+    const botMoveDelay = 700; // Atraso em milissegundos para o movimento do bot
+
+    // --- CONFIGURAÇÃO DE DIFICULDADE (PROFUNDIDADE DO ALGORITMO MINIMAX) ---
+    const difficultyLevels = {
+        'random': 0, // 0 significa bot aleatório (sem busca)
+        'easy': 1,   // Busca 1 movimento à frente (apenas o próprio movimento)
+        'medium': 2, // Busca 2 movimentos à frente (seu movimento, resposta do oponente)
+        'hard': 3    // Busca 3 movimentos à frente (seu movimento, resposta do oponente, sua próxima resposta)
+    };
+    let currentDifficulty = difficultySelect.value; // Pega a dificuldade inicial do select
+
+    // --- FUNÇÕES DE ÁUDIO (Web Audio API) ---
     let audioContext;
 
     function getAudioContext() {
-        // Tenta criar o AudioContext se ainda não existe
         if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
-        // Retoma o contexto de áudio se ele estiver suspenso
-        // (necessário devido às políticas de autoplay dos navegadores)
         if (audioContext.state === 'suspended') {
             audioContext.resume().then(() => {
                 console.log('AudioContext resumed!');
@@ -26,13 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return audioContext;
     }
 
-    // Função genérica para tocar sons com oscilador
     function playSound(frequency, duration, type = 'sine', volume = 0.1, delay = 0) {
         const context = getAudioContext();
-        if (!context) {
-            console.warn("AudioContext not ready, cannot play sound.");
-            return; // Não tenta tocar se o contexto não está pronto
-        }
+        if (!context) { return; }
 
         const oscillator = context.createOscillator();
         const gainNode = context.createGain();
@@ -40,466 +50,71 @@ document.addEventListener('DOMContentLoaded', () => {
         oscillator.connect(gainNode);
         gainNode.connect(context.destination);
 
-        oscillator.type = type; // Tipos: 'sine', 'square', 'sawtooth', 'triangle'
+        oscillator.type = type;
         oscillator.frequency.setValueAtTime(frequency, context.currentTime + delay);
-
         gainNode.gain.setValueAtTime(volume, context.currentTime + delay);
-        // Pequeno fade-out para evitar cliques no final do som
         gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + delay + duration);
 
         oscillator.start(context.currentTime + delay);
         oscillator.stop(context.currentTime + delay + duration);
     }
 
-    // Funções específicas para cada som do jogo
-    function playMoveSound() {
-        playSound(440, 0.1, 'sine', 0.1); // Ex: Tom de Lá, curto
-    }
-
-    function playCaptureSound() {
-        playSound(330, 0.15, 'triangle', 0.2); // Ex: Tom de Mi, um pouco mais longo e agudo
-    }
-
+    function playMoveSound() { playSound(440, 0.1, 'sine', 0.1); }
+    function playCaptureSound() { playSound(330, 0.15, 'triangle', 0.2); }
     function playCheckmateSound() {
         const context = getAudioContext();
         if (!context) return;
-
         const mainOscillator = context.createOscillator();
         const gainNode = context.createGain();
-
         mainOscillator.connect(gainNode);
         gainNode.connect(context.destination);
-
-        mainOscillator.type = 'sawtooth'; // Onda dente de serra para um som mais "agressivo"
-        mainOscillator.frequency.setValueAtTime(220, context.currentTime); // Começa com um tom grave (A3)
-        mainOscillator.frequency.linearRampToValueAtTime(330, context.currentTime + 0.5); // Sobe para um tom mais agudo (E4)
-        mainOscillator.frequency.linearRampToValueAtTime(110, context.currentTime + 1.0); // Desce para um tom grave (A2)
-
-        gainNode.gain.setValueAtTime(0.3, context.currentTime); // Volume inicial
-        gainNode.gain.linearRampToValueAtTime(0.0001, context.currentTime + 1.2); // Fade-out
-
+        mainOscillator.type = 'sawtooth';
+        mainOscillator.frequency.setValueAtTime(220, context.currentTime);
+        mainOscillator.frequency.linearRampToValueAtTime(330, context.currentTime + 0.5);
+        mainOscillator.frequency.linearRampToValueAtTime(110, context.currentTime + 1.0);
+        gainNode.gain.setValueAtTime(0.3, context.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.0001, context.currentTime + 1.2);
         mainOscillator.start(context.currentTime);
         mainOscillator.stop(context.currentTime + 1.2);
     }
-
-    function playPromoteSound() {
-        playSound(660, 0.1, 'square', 0.15); // Ex: Tom mais agudo (E5), onda quadrada
-    }
-
-    function playCastleSound() {
-        // Dois bipes rápidos um após o outro
-        playSound(550, 0.08, 'sine', 0.1); // Primeiro som (C#5)
-        playSound(660, 0.08, 'sine', 0.1, 0.1); // Segundo som (E5) com um pequeno atraso
-    }
-    // --- FIM DAS FUNÇÕES DE ÁUDIO ---
-
-    // Adiciona event listeners para tentar "destravar" o AudioContext na primeira interação do usuário
-    // Isso é crucial para que os sons funcionem em navegadores modernos
+    function playPromoteSound() { playSound(660, 0.1, 'square', 0.15); }
+    function playCastleSound() { playSound(550, 0.08, 'sine', 0.1); playSound(660, 0.08, 'sine', 0.1, 0.1); }
+    
+    // Adiciona event listeners para tentar "destravar" o AudioContext
     document.body.addEventListener('click', getAudioContext, { once: true });
     newGameButton.addEventListener('click', getAudioContext, { once: true });
+    difficultySelect.addEventListener('change', getAudioContext, { once: true }); // Também no select de dificuldade
 
+    // Mapeamento de peças do chess.js para símbolos Unicode
+    const pieceSymbols = {
+        'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛', 'k': '♚',
+        'P': '♙', 'N': '♘', 'B': '♗', 'R': '♖', 'Q': '♕', 'K': '♔'
+    };
 
-    // Representação do tabuleiro de xadrez no estado inicial com símbolos Unicode
-    const initialBoard = [
-        ['♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'], // Peças pretas
-        ['♟', '♟', '♟', '♟', '♟', '♟', '♟', '♟'], // Peões pretos
-        ['', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', '', ''],
-        ['♙', '♙', '♙', '♙', '♙', '♙', '♙', '♙'], // Peões brancos
-        ['♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖']  // Peças brancas
-    ];
-
-    // Mapeamento de peças para o array de tabuleiro (estado atual do jogo)
-    let boardState = initialBoard.map(row => [...row]);
-
-    let isWhiteTurn = true; // true para branco, false para preto
-
-    // --- Variáveis do Relógio ---
+    let isWhiteTurn = true;
     const initialTime = 5 * 60; // 5 minutos em segundos por jogador
     let whiteTime = initialTime;
     let blackTime = initialTime;
-    let timerInterval; // Variável para armazenar o ID do setInterval
+    let timerInterval;
+    let pawnToPromote = null;
+    let isGameOver = false;
 
-    // --- Variáveis para rastrear movimentos para o Roque (Castling) ---
-    let hasWhiteKingMoved = false;
-    let hasBlackKingMoved = false;
-    let hasWhiteRookKingSideMoved = false;  // Torre do lado do Rei branco (h1)
-    let hasWhiteRookQueenSideMoved = false; // Torre do lado da Rainha branca (a1)
-    let hasBlackRookKingSideMoved = false;  // Torre do lado do Rei preto (h8)
-    let hasBlackRookQueenSideMoved = false; // Torre do lado da Rainha preta (a8)
-
-    // --- Variável para controle da Promoção de Peão ---
-    let pawnToPromote = null; // Guarda a posição do peão que precisa ser promovido
-
-    // --- Variáveis de Controle de Fim de Jogo ---
-    let isGameOver = false; // Flag para indicar se o jogo acabou
-
-    // --- Funções Auxiliares para Regras de Movimento ---
-
-    function isWhitePiece(piece) {
-        return ['♔', '♕', '♖', '♗', '♘', '♙'].includes(piece);
+    // --- Funções Auxiliares de Peças e Cores ---
+    function isWhitePiece(pieceSymbol) {
+        return ['♔', '♕', '♖', '♗', '♘', '♙'].includes(pieceSymbol);
     }
 
-    function isBlackPiece(piece) {
-        return ['♚', '♛', '♜', '♝', '♞', '♟'].includes(piece);
+    function isBlackPiece(pieceSymbol) {
+        return ['♚', '♛', '♜', '♝', '♞', '♟'].includes(pieceSymbol);
     }
 
-    function getPieceColor(piece) {
-        if (isWhitePiece(piece)) return 'white';
-        if (isBlackPiece(piece)) return 'black';
-        return null; // Retorna null para casas vazias
+    function getPieceColor(pieceSymbol) {
+        if (isWhitePiece(pieceSymbol)) return 'white';
+        if (isBlackPiece(pieceSymbol)) return 'black';
+        return null;
     }
 
-    function isOpponent(piece1, piece2) {
-        // Verifica se ambas as peças existem e têm cores diferentes
-        if (!piece1 || !piece2 || piece1 === '' || piece2 === '') return false;
-        return getPieceColor(piece1) !== getPieceColor(piece2);
-    }
-
-    function isValidPosition(r, c) {
-        // Verifica se a linha e coluna estão dentro dos limites do tabuleiro (0 a 7)
-        return r >= 0 && r < 8 && c >= 0 && c < 8;
-    }
-
-    // --- Funções de Movimento para Cada Tipo de Peça (Movimentos Brutos) ---
-
-    function getPawnMoves(row, col, color) {
-        const moves = [];
-        const direction = (color === 'white') ? -1 : 1;
-        const startRow = (color === 'white') ? 6 : 1;
-
-        const oneStepForwardRow = row + direction;
-        if (isValidPosition(oneStepForwardRow, col) && boardState[oneStepForwardRow][col] === '') {
-            moves.push({ r: oneStepForwardRow, c: col });
-
-            const twoStepsForwardRow = row + 2 * direction;
-            if (row === startRow && isValidPosition(twoStepsForwardRow, col) && boardState[twoStepsForwardRow][col] === '') {
-                moves.push({ r: twoStepsForwardRow, c: col });
-            }
-        }
-
-        const captureCols = [col - 1, col + 1];
-        for (const c of captureCols) {
-            const targetRow = row + direction;
-            if (isValidPosition(targetRow, c) && isOpponent(boardState[row][col], boardState[targetRow][c])) {
-                moves.push({ r: targetRow, c: c, isCapture: true }); // Adiciona isCapture para indicar captura
-            }
-        }
-        return moves;
-    }
-
-    function getRookMoves(row, col, color) {
-        const moves = [];
-        const directions = [
-            { dr: -1, dc: 0 }, { dr: 1, dc: 0 },
-            { dr: 0, dc: -1 }, { dr: 0, dc: 1 }
-        ];
-        const piece = boardState[row][col];
-
-        for (const dir of directions) {
-            for (let i = 1; i < 8; i++) {
-                const newRow = row + i * dir.dr;
-                const newCol = col + i * dir.dc;
-
-                if (!isValidPosition(newRow, newCol)) break;
-
-                const targetPiece = boardState[newRow][newCol];
-                if (targetPiece === '') {
-                    moves.push({ r: newRow, c: newCol });
-                } else {
-                    if (isOpponent(piece, targetPiece)) {
-                        moves.push({ r: newRow, c: newCol, isCapture: true }); // Adiciona isCapture
-                    }
-                    break;
-                }
-            }
-        }
-        return moves;
-    }
-
-    function getBishopMoves(row, col, color) {
-        const moves = [];
-        const directions = [
-            { dr: -1, dc: -1 }, { dr: -1, dc: 1 },
-            { dr: 1, dc: -1 }, { dr: 1, dc: 1 }
-        ];
-        const piece = boardState[row][col];
-
-        for (const dir of directions) {
-            for (let i = 1; i < 8; i++) {
-                const newRow = row + i * dir.dr;
-                const newCol = col + i * dir.dc;
-
-                if (!isValidPosition(newRow, newCol)) break;
-
-                const targetPiece = boardState[newRow][newCol];
-                if (targetPiece === '') {
-                    moves.push({ r: newRow, c: newCol });
-                } else {
-                    if (isOpponent(piece, targetPiece)) {
-                        moves.push({ r: newRow, c: newCol, isCapture: true }); // Adiciona isCapture
-                    }
-                    break;
-                }
-            }
-        }
-        return moves;
-    }
-
-    function getQueenMoves(row, col, color) {
-        return [...getRookMoves(row, col, color), ...getBishopMoves(row, col, color)];
-    }
-
-    function getKnightMoves(row, col, color) {
-        const moves = [];
-        const knightLMoves = [
-            { dr: -2, dc: -1 }, { dr: -2, dc: 1 },
-            { dr: -1, dc: -2 }, { dr: -1, dc: 2 },
-            { dr: 1, dc: -2 }, { dr: 1, dc: 2 },
-            { dr: 2, dc: -1 }, { dr: 2, dc: 1 }
-        ];
-        const piece = boardState[row][col];
-
-        for (const move of knightLMoves) {
-            const newRow = row + move.dr;
-            const newCol = col + move.dc;
-
-            if (isValidPosition(newRow, newCol)) {
-                const targetPiece = boardState[newRow][newCol];
-                if (targetPiece === '') {
-                    moves.push({ r: newRow, c: newCol });
-                } else if (isOpponent(piece, targetPiece)) {
-                    moves.push({ r: newRow, c: newCol, isCapture: true }); // Adiciona isCapture
-                }
-            }
-        }
-        return moves;
-    }
-
-    function getKingMoves(row, col, color) {
-        const moves = [];
-        const directions = [
-            { dr: -1, dc: -1 }, { dr: -1, dc: 0 }, { dr: -1, dc: 1 },
-            { dr: 0, dc: -1 },                       { dr: 0, dc: 1 },
-            { dr: 1, dc: -1 }, { dr: 1, dc: 0 }, { dr: 1, dc: 1 }
-        ];
-        const piece = boardState[row][col];
-
-        for (const dir of directions) {
-            const newRow = row + dir.dr;
-            const newCol = col + dir.dc;
-
-            if (isValidPosition(newRow, newCol)) {
-                const targetPiece = boardState[newRow][newCol];
-                if (targetPiece === '') {
-                    moves.push({ r: newRow, c: newCol });
-                } else if (isOpponent(piece, targetPiece)) {
-                    moves.push({ r: newRow, c: newCol, isCapture: true }); // Adiciona isCapture
-                }
-            }
-        }
-
-        // --- LÓGICA DO ROQUE (CASTLING) ---
-        if (color === 'white') {
-            // Roque Lado do Rei (King-side Castling - para g1)
-            if (!hasWhiteKingMoved && !hasWhiteRookKingSideMoved) {
-                if (boardState[7][5] === '' && boardState[7][6] === '') {
-                    if (!isKingInCheck('white')) {
-                        // Simula movimento para f1 e g1 para verificar xeque
-                        boardState[7][5] = '♔'; boardState[7][4] = '';
-                        const isPassingThroughCheck = isKingInCheck('white');
-                        boardState[7][4] = '♔'; boardState[7][5] = ''; // Desfaz simulação
-
-                        if (!isPassingThroughCheck) {
-                            boardState[7][6] = '♔'; boardState[7][4] = '';
-                            const isEndingInCheck = isKingInCheck('white');
-                            boardState[7][4] = '♔'; boardState[7][6] = ''; // Desfaz simulação
-
-                            if (!isEndingInCheck) {
-                                moves.push({ r: 7, c: 6, isCastling: true, rookFrom: {r: 7, c: 7}, rookTo: {r: 7, c: 5} });
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Roque Lado da Rainha (Queen-side Castling - para c1)
-            if (!hasWhiteKingMoved && !hasWhiteRookQueenSideMoved) {
-                if (boardState[7][1] === '' && boardState[7][2] === '' && boardState[7][3] === '') {
-                    if (!isKingInCheck('white')) {
-                        // Simula movimento para d1 e c1 para verificar xeque
-                        boardState[7][3] = '♔'; boardState[7][4] = '';
-                        const isPassingThroughCheck = isKingInCheck('white');
-                        boardState[7][4] = '♔'; boardState[7][3] = ''; // Desfaz simulação
-
-                        if (!isPassingThroughCheck) {
-                            boardState[7][2] = '♔'; boardState[7][4] = '';
-                            const isEndingInCheck = isKingInCheck('white');
-                            boardState[7][4] = '♔'; boardState[7][2] = ''; // Desfaz simulação
-
-                            if (!isEndingInCheck) {
-                                moves.push({ r: 7, c: 2, isCastling: true, rookFrom: {r: 7, c: 0}, rookTo: {r: 7, c: 3} });
-                            }
-                        }
-                    }
-                }
-            }
-        } else { // Roque para as peças pretas
-            // Roque Lado do Rei (King-side Castling - para g8)
-            if (!hasBlackKingMoved && !hasBlackRookKingSideMoved) {
-                if (boardState[0][5] === '' && boardState[0][6] === '') {
-                    if (!isKingInCheck('black')) {
-                        boardState[0][5] = '♚'; boardState[0][4] = '';
-                        const isPassingThroughCheck = isKingInCheck('black');
-                        boardState[0][4] = '♚'; boardState[0][5] = '';
-
-                        if (!isPassingThroughCheck) {
-                            boardState[0][6] = '♚'; boardState[0][4] = '';
-                            const isEndingInCheck = isKingInCheck('black');
-                            boardState[0][4] = '♚'; boardState[0][6] = '';
-
-                            if (!isEndingInCheck) {
-                                moves.push({ r: 0, c: 6, isCastling: true, rookFrom: {r: 0, c: 7}, rookTo: {r: 0, c: 5} });
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Roque Lado da Rainha (Queen-side Castling - para c8)
-            if (!hasBlackKingMoved && !hasBlackRookQueenSideMoved) {
-                if (boardState[0][1] === '' && boardState[0][2] === '' && boardState[0][3] === '') {
-                    if (!isKingInCheck('black')) {
-                        boardState[0][3] = '♚'; boardState[0][4] = '';
-                        const isPassingThroughCheck = isKingInCheck('black');
-                        boardState[0][4] = '♚'; boardState[0][3] = '';
-
-                        if (!isPassingThroughCheck) {
-                            boardState[0][2] = '♚'; boardState[0][4] = '';
-                            const isEndingInCheck = isKingInCheck('black');
-                            boardState[0][4] = '♚'; boardState[0][2] = '';
-
-                            if (!isEndingInCheck) {
-                                moves.push({ r: 0, c: 2, isCastling: true, rookFrom: {r: 0, c: 0}, rookTo: {r: 0, c: 3} });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return moves;
-    }
-
-    // --- Função para verificar se um Rei está em xeque ---
-    function isKingInCheck(kingColor) {
-        let kingRow, kingCol;
-        const opponentColor = (kingColor === 'white') ? 'black' : 'white';
-        const kingPiece = (kingColor === 'white') ? '♔' : '♚';
-
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (boardState[r][c] === kingPiece) {
-                    kingRow = r;
-                    kingCol = c;
-                    break;
-                }
-            }
-            if (kingRow !== undefined) break;
-        }
-
-        if (kingRow === undefined) return false;
-
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const piece = boardState[r][c];
-                if (piece !== '' && getPieceColor(piece) === opponentColor) {
-                    const getRawMovesForPiece = (r, c) => {
-                        const p = boardState[r][c];
-                        const col = getPieceColor(p);
-                        switch (p) {
-                            case '♙': case '♟': return getPawnMoves(r, c, col);
-                            case '♖': case '♜': return getRookMoves(r, c, col);
-                            case '♗': case '♝': return getBishopMoves(r, c, col);
-                            case '♕': case '♛': return getQueenMoves(r, c, col);
-                            case '♘': case '♞': return getKnightMoves(r, c, col);
-                            case '♔': case '♚': return getKingMoves(r, c, col).filter(move => !move.isCastling); // Reis não podem rocar para escapar do xeque
-                            default: return [];
-                        }
-                    };
-                    const potentialAttacks = getRawMovesForPiece(r, c);
-
-                    for (const attackMove of potentialAttacks) {
-                        if (attackMove.r === kingRow && attackMove.c === kingCol) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    // --- Função Central para Obter Todos os Movimentos Válidos de uma Peça ---
-    function getValidMovesForPiece(row, col) {
-        const piece = boardState[row][col];
-        const color = getPieceColor(piece);
-        let moves = [];
-
-        switch (piece) {
-            case '♙': case '♟': moves = getPawnMoves(row, col, color); break;
-            case '♖': case '♜': moves = getRookMoves(row, col, color); break;
-            case '♗': case '♝': moves = getBishopMoves(row, col, color); break;
-            case '♕': case '♛': moves = getQueenMoves(row, col, color); break;
-            case '♘': case '♞': moves = getKnightMoves(row, col, color); break;
-            case '♔': case '♚': moves = getKingMoves(row, col, color); break;
-            default: moves = [];
-        }
-
-        const filteredMoves = moves.filter(move => {
-            // Se for um movimento de roque, a validação de xeque já foi feita em getKingMoves
-            if (move.isCastling) {
-                return true;
-            }
-
-            const originalPiece = boardState[row][col];
-            const targetPiece = boardState[move.r][move.c]; // Peça na casa de destino, pode ser vazia ou inimiga
-            
-            // Simula o movimento
-            boardState[move.r][move.c] = originalPiece;
-            boardState[row][col] = '';
-
-            const kingColor = getPieceColor(originalPiece);
-            const isInCheckAfterMove = isKingInCheck(kingColor);
-
-            // Desfaz a simulação do movimento
-            boardState[row][col] = originalPiece;
-            boardState[move.r][move.c] = targetPiece;
-
-            return !isInCheckAfterMove; // O movimento é válido se o rei não estiver em xeque após ele
-        });
-
-        return filteredMoves;
-    }
-
-    // --- Nova função para verificar se o jogador tem QUALQUER movimento legal ---
-    function hasAnyLegalMoves(playerColor) {
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const piece = boardState[r][c];
-                if (piece !== '' && getPieceColor(piece) === playerColor) {
-                    const moves = getValidMovesForPiece(r, c);
-                    if (moves.length > 0) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    // --- Funções para Destacar Casas no Tabuleiro ---
+    // --- Funções de Destaque ---
     function highlightValidMoves(validMoves) {
         validMoves.forEach(move => {
             const targetSquare = document.getElementById('sq-' + move.r + '-' + move.c);
@@ -536,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 whiteTimerDisplay.classList.remove('active-timer');
             }
         } else {
-            // Remove destaque de timer ativo quando o jogo termina
             whiteTimerDisplay.classList.remove('active-timer');
             blackTimerDisplay.classList.remove('active-timer');
         }
@@ -584,82 +198,300 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameOver = true;
         alert(`FIM DE JOGO! O tempo do jogador ${playerColor} acabou. O jogador ${playerColor === 'Brancas' ? 'Pretas' : 'Brancas'} venceu por tempo!`);
         console.log(`FIM DE JOGO! O tempo do jogador ${playerColor} acabou.`);
-        playCheckmateSound(); // Toca som de xeque-mate/fim de jogo
+        playCheckmateSound();
     }
 
-    // --- Função para Renderizar o Tabuleiro (útil para reiniciar o jogo) ---
+    // --- Renderização do Tabuleiro (AGORA LÊ DO CHESS.JS) ---
     function renderBoard() {
         if (!chessboard) {
             console.error("Erro: O elemento #chessboard não foi encontrado no DOM.");
             return;
         }
-        chessboard.innerHTML = ''; // Limpa o tabuleiro HTML existente
+        chessboard.innerHTML = '';
 
-        for (let i = 0; i < 64; i++) {
-            const square = document.createElement('div');
-            square.classList.add('square');
+        const currentBoard = chessGame.board(); // Objeto 8x8 do chess.js
 
-            const row = Math.floor(i / 8);
-            const col = i % 8;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const square = document.createElement('div');
+                square.classList.add('square');
+                square.id = 'sq-' + r + '-' + c;
 
-            square.id = 'sq-' + row + '-' + col; // Define um ID para cada casa (ex: sq-0-0)
-
-            if ((row + col) % 2 === 0) {
-                square.classList.add('light');
-            } else {
-                square.classList.add('dark');
-            }
-
-            const piece = boardState[row][col];
-            if (piece) {
-                square.textContent = piece;
-                if (isBlackPiece(piece)) {
-                    square.classList.add('black-piece');
-                } else if (isWhitePiece(piece)) {
-                    square.classList.add('white-piece');
+                if ((r + c) % 2 === 0) {
+                    square.classList.add('light');
+                } else {
+                    square.classList.add('dark');
                 }
+
+                const pieceData = currentBoard[r][c]; // { type: 'p', color: 'w' } ou null
+
+                if (pieceData) {
+                    const pieceSymbol = pieceSymbols[pieceData.type.toUpperCase()] || pieceSymbols[pieceData.type];
+                    if (pieceData.color === 'b') {
+                        square.classList.add('black-piece');
+                    } else {
+                        square.classList.add('white-piece');
+                    }
+                    square.textContent = pieceSymbol;
+                }
+
+                square.addEventListener('click', () => {
+                    handleClick(square, r, c);
+                });
+                chessboard.appendChild(square);
             }
-
-            square.addEventListener('click', () => {
-                handleClick(square, row, col);
-            });
-
-            chessboard.appendChild(square);
         }
     }
 
     // Chamada inicial para renderizar o tabuleiro e iniciar o relógio
     renderBoard();
-    updateTimerDisplay(); // Atualiza os displays antes de iniciar o jogo
-    startTimer(); // Inicia o relógio assim que o jogo carrega
+    updateTimerDisplay();
+    startTimer();
 
     // --- Função de Reinício do Jogo ---
     function resetGame() {
-        boardState = initialBoard.map(row => [...row]); 
-
+        chessGame.reset(); // Reseta o estado do jogo na biblioteca chess.js
+        
         isWhiteTurn = true;
         selectedSquare = null;
-        hasWhiteKingMoved = false;
-        hasBlackKingMoved = false;
-        hasWhiteRookKingSideMoved = false;
-        hasWhiteRookQueenSideMoved = false;
-        hasBlackRookKingSideMoved = false;
-        hasBlackRookQueenSideMoved = false;
         pawnToPromote = null;
         isGameOver = false;
 
-        // Reseta o tempo para o valor inicial
         whiteTime = initialTime;
         blackTime = initialTime;
-        updateTimerDisplay(); // Atualiza o display do relógio imediatamente
+        updateTimerDisplay();
 
         clearHighlights();
         document.getElementById('promotion-overlay').classList.add('hidden');
 
         renderBoard();
-        // Reinicia o timer para o novo jogo
         startTimer();
         console.log("Jogo Reiniciado!");
+
+        // Se o bot joga com as brancas e a IA estiver habilitada, faz o primeiro movimento do bot
+        if (botColor === 'white' && difficultyLevels[currentDifficulty] > 0) {
+            setTimeout(makeBotMove, botMoveDelay);
+        }
+    }
+
+    // --- Funções de Ajuda para a IA (Converte coordenadas para notação de xadrez e vice-versa) ---
+    function toChessCoord(row, col) {
+        return String.fromCharCode(97 + col) + (8 - row);
+    }
+
+    function fromChessCoord(coord) {
+        return {
+            r: 8 - parseInt(coord[1]),
+            c: coord.charCodeAt(0) - 97
+        };
+    }
+
+    // --- LÓGICA DA IA (BOT) ---
+
+    // Função de Avaliação Simples (Evaluation Function)
+    // Dá pontos para as peças. Pode ser expandida para incluir controle de centro, etc.
+    function evaluateBoard(board) {
+        let score = 0;
+        const pieceValues = {
+            'p': 10, 'n': 30, 'b': 30, 'r': 50, 'q': 90, 'k': 900 // K é alto para indicar importância
+        };
+
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = board[r][c];
+                if (piece) {
+                    const value = pieceValues[piece.type];
+                    if (piece.color === 'w') {
+                        score += value;
+                    } else {
+                        score -= value;
+                    }
+                }
+            }
+        }
+        return score;
+    }
+
+    // Algoritmo Minimax/Negamax com Poda Alpha-Beta
+    // Adaptação de https://github.com/josephredfern/minimax-chess-ai
+    function minimax(game, depth, alpha, beta, maximizingPlayer) {
+        if (depth === 0 || game.game_over()) {
+            return evaluateBoard(game.board());
+        }
+
+        const moves = game.moves({ verbose: true });
+
+        // Ordena os movimentos para otimizar a poda alpha-beta (tenta movimentos mais promissores primeiro)
+        moves.sort((a, b) => {
+            // Prioriza capturas e movimentos que mudam o material
+            const aValue = a.captured ? pieceValues[a.captured.toLowerCase()] : 0;
+            const bValue = b.captured ? pieceValues[b.captured.toLowerCase()] : 0;
+            return bValue - aValue; // Quanto maior o valor da peça capturada, mais interessante
+        });
+
+        if (maximizingPlayer) {
+            let maxEval = -Infinity;
+            for (const move of moves) {
+                game.move(move);
+                const evaluation = minimax(game, depth - 1, alpha, beta, false);
+                game.undo(); // Desfaz o movimento para testar o próximo
+                maxEval = Math.max(maxEval, evaluation);
+                alpha = Math.max(alpha, evaluation);
+                if (beta <= alpha) {
+                    break; // Poda Beta
+                }
+            }
+            return maxEval;
+        } else {
+            let minEval = Infinity;
+            for (const move of moves) {
+                game.move(move);
+                const evaluation = minimax(game, depth - 1, alpha, beta, true);
+                game.undo(); // Desfaz o movimento para testar o próximo
+                minEval = Math.min(minEval, evaluation);
+                beta = Math.min(beta, evaluation);
+                if (beta <= alpha) {
+                    break; // Poda Alpha
+                }
+            }
+            return minEval;
+        }
+    }
+    
+    // Função para calcular o melhor movimento para a IA
+    function findBestMove(game, depth) {
+        const possibleMoves = game.moves({ verbose: true });
+        let bestMove = null;
+        let bestValue = -Infinity; // Se a IA for 'w', maximiza. Se for 'b', minimiza.
+        const originalTurn = game.turn(); // 'w' ou 'b'
+
+        // A IA está jogando como preto, então ela quer minimizar a pontuação (que é favorável às brancas)
+        // Por isso, inicializamos bestValue como Infinity e procuramos o menor valor.
+        // Se a IA fosse branca, seria -Infinity.
+        if (originalTurn === 'b') {
+            bestValue = Infinity;
+        }
+
+        // Ordena os movimentos para otimizar a poda alpha-beta
+        possibleMoves.sort((a, b) => {
+            const pieceValues = { 'p': 10, 'n': 30, 'b': 30, 'r': 50, 'q': 90 };
+            const aValue = a.captured ? pieceValues[a.captured.toLowerCase()] : 0;
+            const bValue = b.captured ? pieceValues[b.captured.toLowerCase()] : 0;
+            return bValue - aValue; // Prioriza capturas
+        });
+
+
+        for (const move of possibleMoves) {
+            game.move(move); // Faz o movimento na instância temporária do jogo
+
+            // Se o turno for 'w', a IA está maximizando. Se for 'b', a IA está minimizando.
+            const evaluation = minimax(game, depth - 1, -Infinity, Infinity, originalTurn === 'b' ? false : true); // Inverte o maximizingPlayer para a próxima camada
+            
+            game.undo(); // Desfaz o movimento para testar o próximo
+
+            if (originalTurn === 'w') { // Se a IA for branca (MAXIMIZANDO)
+                if (evaluation > bestValue) {
+                    bestValue = evaluation;
+                    bestMove = move;
+                }
+            } else { // Se a IA for preta (MINIMIZANDO)
+                if (evaluation < bestValue) {
+                    bestValue = evaluation;
+                    bestMove = move;
+                }
+            }
+        }
+        return bestMove;
+    }
+
+    // Função principal para o movimento do bot
+    function makeBotMove() {
+        if (isGameOver || chessGame.turn() !== botColor[0]) {
+            return; // Não é o turno do bot ou o jogo acabou
+        }
+
+        console.log(`Turno do Bot (${botColor[0].toUpperCase()}). Dificuldade: ${currentDifficulty}`);
+        
+        let chosenMove = null;
+        const depth = difficultyLevels[currentDifficulty];
+
+        if (depth === 0) { // Bot Aleatório
+            const possibleMoves = chessGame.moves({ verbose: true });
+            if (possibleMoves.length > 0) {
+                chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+            }
+        } else { // Bot com IA (Minimax)
+            // Cria uma cópia do jogo para a IA não afetar o estado real durante a busca
+            const tempGame = new Chess(chessGame.fen()); 
+            chosenMove = findBestMove(tempGame, depth);
+        }
+
+        if (chosenMove) {
+            const moveResult = chessGame.move(chosenMove);
+            console.log("Bot moveu:", chosenMove);
+
+            renderBoard();
+
+            if (moveResult.captured) {
+                playCaptureSound();
+            } else if (moveResult.flags.includes('k') || moveResult.flags.includes('q')) {
+                playCastleSound();
+            } else if (moveResult.flags.includes('p')) {
+                playPromoteSound();
+            } else {
+                playMoveSound();
+            }
+
+            checkGameStatus();
+            if (!isGameOver) {
+                switchTurn();
+            }
+        } else {
+            console.log("Bot não encontrou nenhum movimento. Fim de jogo ou erro.");
+            // Isso pode indicar afogamento ou xeque-mate se o chessGame.moves() retornou vazio
+            checkGameStatus(); // Para garantir que o fim do jogo seja detectado
+        }
+    }
+
+
+    // --- Funções para controlar o Turno e o Fim do Jogo ---
+    function switchTurn() {
+        isWhiteTurn = !isWhiteTurn;
+        updateTimerDisplay();
+        startTimer();
+
+        // Se for o turno do bot e a IA estiver habilitada, faz o movimento do bot
+        if ((isWhiteTurn && botColor === 'white' || !isWhiteTurn && botColor === 'black') && difficultyLevels[currentDifficulty] > 0) {
+            setTimeout(makeBotMove, botMoveDelay);
+        }
+    }
+
+    function checkGameStatus() {
+        if (chessGame.in_checkmate()) {
+            isGameOver = true;
+            pauseTimer();
+            const winnerColor = chessGame.turn() === 'w' ? 'Pretas' : 'Brancas'; // O perdedor é o de quem é o turno
+            alert(`XEQUE-MATE! O jogador ${chessGame.turn() === 'w' ? 'Brancas' : 'Pretas'} perdeu. ${winnerColor} venceu!`);
+            playCheckmateSound();
+        } else if (chessGame.in_stalemate()) {
+            isGameOver = true;
+            pauseTimer();
+            alert("AFOGAMENTO! O jogo terminou em empate.");
+        } else if (chessGame.in_draw()) {
+            isGameOver = true;
+            pauseTimer();
+            alert("O jogo terminou em empate por regra de empate!");
+        } else if (chessGame.in_threefold_repetition()) {
+            isGameOver = true;
+            pauseTimer();
+            alert("O jogo terminou em empate por repetição de movimentos!");
+        } else if (chessGame.insufficient_material()) {
+            isGameOver = true;
+            pauseTimer();
+            alert("O jogo terminou em empate por material insuficiente!");
+        } else if (chessGame.in_check()) {
+            console.log(`Rei ${chessGame.turn() === 'w' ? 'Branco' : 'Preto'} está em XEQUE!`);
+        }
     }
 
     // --- Função que lida com o clique em uma casa do tabuleiro ---
@@ -674,158 +506,86 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const pieceInSquare = boardState[row][col];
+        const squareName = toChessCoord(row, col);
+        const pieceData = chessGame.get(squareName);
+
+        const currentTurnColor = isWhiteTurn ? 'white' : 'black';
+
+        // Impede que o jogador clique se for o turno do bot
+        if ((currentTurnColor === botColor) && difficultyLevels[currentDifficulty] > 0) {
+            console.log("Não é o seu turno. É o turno do bot.");
+            return;
+        }
 
         if (!selectedSquare) {
-            if (pieceInSquare !== '') {
-                const pieceColor = getPieceColor(pieceInSquare);
-                if ((isWhiteTurn && pieceColor === 'white') || (!isWhiteTurn && pieceColor === 'black')) {
-                    selectedSquare = { element: squareElement, row: row, col: col, piece: pieceInSquare };
+            if (pieceData) {
+                const pieceColor = (pieceData.color === 'w') ? 'white' : 'black';
+                if (pieceColor === currentTurnColor) { // Só pode selecionar sua própria peça no seu turno
+                    selectedSquare = { element: squareElement, row: row, col: col, piece: pieceSymbols[pieceData.type.toUpperCase() || pieceData.type] };
                     squareElement.classList.add('selected');
                     
-                    const validMoves = getValidMovesForPiece(row, col);
+                    const validMoves = chessGame.moves({ square: squareName, verbose: true }).map(move => fromChessCoord(move.to));
                     highlightValidMoves(validMoves);
-                    console.log(`Peça selecionada: ${pieceInSquare} na casa ${row},${col}. Movimentos válidos:`, validMoves);
+                    console.log(`Peça selecionada: ${selectedSquare.piece} na casa ${row},${col}. Movimentos válidos:`, validMoves);
                 } else {
-                    console.log(`Não é o turno da peça ${pieceInSquare}.`);
+                    console.log(`Não é o turno da peça ${pieceSymbols[pieceData.type.toUpperCase() || pieceData.type]}.`);
                 }
             }
         } else {
-            const startRow = selectedSquare.row;
-            const startCol = selectedSquare.col;
-            const endRow = row;
-            const endCol = col;
+            const startSquareName = toChessCoord(selectedSquare.row, selectedSquare.col);
+            const endSquareName = toChessCoord(row, col);
 
-            const possibleMoves = getValidMovesForPiece(startRow, startCol); 
-            const moveAttempt = possibleMoves.find(move => move.r === endRow && move.c === endCol);
+            let moveResult;
+            try {
+                // Ao mover um peão para a última fileira, o chess.js entra em estado de promoção
+                // Se a UI for lidar com a escolha, não passe 'promotion' aqui.
+                // Passe 'promotion' se quiser uma promoção automática (ex: sempre rainha)
+                moveResult = chessGame.move({
+                    from: startSquareName,
+                    to: endSquareName,
+                    // promotion: 'q' // Descomente para promoção automática para rainha
+                });
+            } catch (e) {
+                console.error("Erro ao tentar mover:", e.message);
+                moveResult = null;
+            }
 
-            if (moveAttempt) {
-                console.log(`Movimento VÁLIDO de ${selectedSquare.piece} de ${startRow},${startCol} para ${endRow},${endCol}`);
-
-                const pieceToMove = selectedSquare.piece;
-                // Verificar se a casa de destino tinha uma peça (para saber se é captura)
-                const targetSquareHadPiece = boardState[endRow][endCol] !== ''; 
-
-                if (moveAttempt.isCastling) {
-                    console.log("Realizando Roque!");
-                    boardState[endRow][endCol] = pieceToMove;
-                    boardState[startRow][startCol] = '';
-
-                    const rookPiece = boardState[moveAttempt.rookFrom.r][moveAttempt.rookFrom.c];
-                    boardState[moveAttempt.rookTo.r][moveAttempt.rookTo.c] = rookPiece;
-                    boardState[moveAttempt.rookFrom.r][moveAttempt.rookFrom.c] = '';
-
-                    selectedSquare.element.textContent = '';
-                    document.getElementById(`sq-${moveAttempt.rookFrom.r}-${moveAttempt.rookFrom.c}`).textContent = '';
-
-                    squareElement.textContent = pieceToMove;
-                    const rookToElement = document.getElementById(`sq-${moveAttempt.rookTo.r}-${moveAttempt.rookTo.c}`);
-                    rookToElement.textContent = rookPiece;
-
-                    // Remover e adicionar classes de cor (importante após mover peças)
-                    squareElement.classList.remove('white-piece', 'black-piece');
-                    if (isWhitePiece(pieceToMove)) {
-                        squareElement.classList.add('white-piece');
-                    } else if (isBlackPiece(pieceToMove)) {
-                        squareElement.classList.add('black-piece');
-                    }
-                    rookToElement.classList.remove('white-piece', 'black-piece');
-                    if (isWhitePiece(rookPiece)) {
-                        rookToElement.classList.add('white-piece');
-                    } else if (isBlackPiece(rookPiece)) {
-                        rookToElement.classList.add('black-piece');
-                    }
-                    playCastleSound(); // Toca som de roque
-
-                } else {
-                    boardState[endRow][endCol] = pieceToMove;
-                    boardState[startRow][startCol] = '';
-
-                    selectedSquare.element.textContent = '';
-                    squareElement.textContent = pieceToMove;
-
-                    // Remover e adicionar classes de cor
-                    squareElement.classList.remove('white-piece', 'black-piece'); 
-                    if (isWhitePiece(pieceToMove)) {
-                        squareElement.classList.add('white-piece');
-                    } else if (isBlackPiece(pieceToMove)) {
-                            squareElement.classList.add('black-piece');
-                    }
-
-                    // Tocar som de captura se a casa de destino tinha uma peça, ou som de movimento normal
-                    if (targetSquareHadPiece) {
-                        playCaptureSound(); // Toca som de captura
-                    } else {
-                        playMoveSound(); // Toca som de movimento normal
-                    }
-                }
-                selectedSquare.element.classList.remove('selected'); 
+            if (moveResult) {
+                console.log(`Movimento VÁLIDO de ${selectedSquare.piece} de ${startSquareName} para ${endSquareName}`);
                 
-                // Atualiza o estado de movimento de reis e torres para o roque
-                if (pieceToMove === '♔') {
-                    hasWhiteKingMoved = true;
-                } else if (pieceToMove === '♚') {
-                    hasBlackKingMoved = true;
-                } 
-                else if (pieceToMove === '♖' && startRow === 7 && startCol === 7) {
-                    hasWhiteRookKingSideMoved = true;
-                } else if (pieceToMove === '♖' && startRow === 7 && startCol === 0) {
-                    hasWhiteRookQueenSideMoved = true;
-                } else if (pieceToMove === '♜' && startRow === 0 && startCol === 7) {
-                    hasBlackRookKingSideMoved = true;
-                } else if (pieceToMove === '♜' && startRow === 0 && startCol === 0) {
-                    hasBlackRookQueenSideMoved = true;
+                renderBoard();
+
+                if (moveResult.captured) {
+                    playCaptureSound();
+                } else if (moveResult.flags.includes('k') || moveResult.flags.includes('q')) {
+                    playCastleSound();
+                } else {
+                    playMoveSound();
                 }
 
+                selectedSquare.element.classList.remove('selected'); 
                 clearHighlights();
                 selectedSquare = null;
 
-                // Lógica de promoção de peão
-                if ((pieceToMove === '♙' && endRow === 0) || (pieceToMove === '♟' && endRow === 7)) {
-                    pawnToPromote = { r: endRow, c: endCol, piece: pieceToMove };
+                // Lógica de promoção de peão: Agora verificamos se o jogo está em estado de promoção
+                if (chessGame.in_promotion()) {
+                    pawnToPromote = { 
+                        r: row, 
+                        c: col, 
+                        piece: pieceSymbols[moveResult.piece] // Peça que está sendo promovida
+                    }; 
                     document.getElementById('promotion-overlay').classList.remove('hidden');
-                    pauseTimer(); // PAUSA O RELÓGIO DURANTE A PROMOÇÃO
-                    playPromoteSound(); // Toca som de promoção
+                    pauseTimer();
+                    playPromoteSound();
                     console.log("Peão pronto para promoção!");
                 } else {
-                    // Troca o turno e reinicia o relógio
-                    isWhiteTurn = !isWhiteTurn;
-                    updateTimerDisplay(); // Atualiza o indicador de turno e destaca o timer
-                    startTimer(); // Reinicia o timer para o novo jogador
-
-                    console.log(`Turno agora é do jogador ${isWhiteTurn ? 'Branco' : 'Preto'}.`);
-
-                    // Verifica xeque, xeque-mate e afogamento após o movimento
-                    const currentPlayerKingColor = isWhiteTurn ? 'white' : 'black';
-                    const isCurrentKingInCheck = isKingInCheck(currentPlayerKingColor);
-                    const hasLegalMoves = hasAnyLegalMoves(currentPlayerKingColor);
-
-                    if (isCurrentKingInCheck) {
-                        if (!hasLegalMoves) {
-                            console.log(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu.`);
-                            alert(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu. O jogador ${isWhiteTurn ? 'Preto' : 'Branco'} venceu!`);
-                            isGameOver = true;
-                            pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
-                            playCheckmateSound(); // Toca som de xeque-mate/fim de jogo
-                        } else {
-                            console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
-                            // Opcional: Você pode criar um playCheckSound() se quiser um som diferente para xeque
-                        }
-                    } else {
-                        if (!hasLegalMoves) {
-                            console.log(`AFOGAMENTO! O jogo terminou em empate.`);
-                            alert(`AFOGAMENTO! O jogo terminou em empate.`);
-                            isGameOver = true;
-                            pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
-                            // Opcional: Tocar um som de afogamento diferente ou o de xeque-mate
-                        } else {
-                            console.log(`Rei ${currentPlayerKingColor} não está em xeque.`);
-                        }
+                    checkGameStatus();
+                    if (!isGameOver) {
+                        switchTurn();
                     }
                 }
-
             } else {
-                console.log(`Movimento INVÁLIDO para ${selectedSquare.piece} de ${startRow},${startCol} para ${endRow},${endCol}. (Pode ser porque deixaria seu rei em xeque ou a casa não é um movimento válido)`);
+                console.log(`Movimento INVÁLIDO para ${selectedSquare.piece} de ${startSquareName} para ${endSquareName}.`);
                 selectedSquare.element.classList.remove('selected');
                 clearHighlights();
                 selectedSquare = null;
@@ -841,75 +601,48 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', (event) => {
             if (!pawnToPromote) return;
 
-            const chosenPieceType = event.target.dataset.piece;
-            const promotedPieceColor = getPieceColor(pawnToPromote.piece);
+            const chosenPieceType = event.target.dataset.piece.toLowerCase(); // 'q', 'r', 'b', 'n'
+            const targetSquareName = toChessCoord(pawnToPromote.r, pawnToPromote.c);
 
-            let newPieceSymbol;
-            if (promotedPieceColor === 'white') {
-                switch (chosenPieceType) {
-                    case 'Q': newPieceSymbol = '♕'; break;
-                    case 'R': newPieceSymbol = '♖'; break;
-                    case 'B': newPieceSymbol = '♗'; break;
-                    case 'N': newPieceSymbol = '♘'; break;
-                }
-            } else {
-                switch (chosenPieceType) {
-                    case 'Q': newPieceSymbol = '♛'; break;
-                    case 'R': newPieceSymbol = '♜'; break;
-                    case 'B': newPieceSymbol = '♝'; break;
-                    case 'N': newPieceSymbol = '♞'; break;
-                }
-            }
+            // A promoção real no chess.js acontece quando você chama move() com a opção promotion.
+            // Aqui, após a escolha do usuário, fazemos o movimento final de promoção.
+            // É importante que o movimento original que levou à promoção NÃO tenha tido a opção 'promotion'
+            // para que `chessGame.in_promotion()` retorne true.
+            
+            // O `chess.js` automaticamente move o peão para a casa final e espera pela promoção.
+            // A promoção em si é feita com `chessGame.put(pieceData, squareName)` ou `chessGame.promote(pieceType)`.
+            // Ou você pode simplesmente fazer um `move` novamente com o destino e a peça promovida.
+            // Para simplicidade, vamos usar `put` para "trocar" a peça na casa.
 
-            boardState[pawnToPromote.r][pawnToPromote.c] = newPieceSymbol;
-
-            const promotedSquareElement = document.getElementById(`sq-${pawnToPromote.r}-${pawnToPromote.c}`);
-            promotedSquareElement.textContent = newPieceSymbol;
-            promotedSquareElement.classList.remove('white-piece', 'black-piece');
-            if (promotedPieceColor === 'white') {
-                promotedSquareElement.classList.add('white-piece');
-            } else {
-                promotedSquareElement.classList.add('black-piece');
-            }
+            const color = chessGame.turn() === 'w' ? 'b' : 'w'; // A peça promovida tem a cor do jogador que acabou de mover.
+            const pieceData = { type: chosenPieceType, color: color };
+            chessGame.put(pieceData, targetSquareName);
+            
+            renderBoard(); // Re-renderiza para mostrar a peça promovida
 
             promotionOverlay.classList.add('hidden');
             pawnToPromote = null;
 
-            // Continua o relógio APÓS a promoção ser concluída
-            isWhiteTurn = !isWhiteTurn;
-            updateTimerDisplay(); // Atualiza o indicador de turno e destaca o timer
-            startTimer(); // Reinicia o timer para o novo jogador
-
-            console.log(`Promoção concluída. Turno agora é do jogador ${isWhiteTurn ? 'Branco' : 'Preto'}.`);
-
-            const currentPlayerKingColor = isWhiteTurn ? 'white' : 'black';
-            const isCurrentKingInCheck = isKingInCheck(currentPlayerKingColor);
-            const hasLegalMoves = hasAnyLegalMoves(currentPlayerKingColor);
-
-            if (isCurrentKingInCheck) {
-                if (!hasLegalMoves) {
-                    console.log(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu.`);
-                    alert(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu. O jogador ${isWhiteTurn ? 'Preto' : 'Branco'} venceu!`);
-                    isGameOver = true;
-                    pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
-                    playCheckmateSound(); // Toca som de xeque-mate/fim de jogo
-                } else {
-                    console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
-                }
-            } else {
-                if (!hasLegalMoves) {
-                    console.log(`AFOGAMENTO! O jogo terminou em empate.`);
-                    alert(`AFOGAMENTO! O jogo terminou em empate.`);
-                    isGameOver = true;
-                    pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
-                    // Opcional: Tocar som de afogamento
-                } else {
-                    console.log(`Rei ${currentPlayerKingColor} não está em xeque.`);
-                }
+            checkGameStatus(); // Verifica se o jogo acabou após a promoção
+            if (!isGameOver) {
+                switchTurn(); // Troca o turno e reinicia o relógio
             }
         });
     });
 
+    // --- Event Listeners dos Botões ---
     newGameButton.addEventListener('click', resetGame);
+    
+    // Altera a dificuldade da IA
+    difficultySelect.addEventListener('change', (event) => {
+        currentDifficulty = event.target.value;
+        console.log("Dificuldade da IA alterada para:", currentDifficulty);
+        // Opcional: Reiniciar o jogo automaticamente ou apenas aplicar a nova dificuldade no próximo jogo
+        // resetGame(); 
+    });
 
-}); // Fechamento final do DOMContentLoaded
+    // Inicia o bot se ele for o primeiro a jogar (peças pretas) e a IA estiver habilitada
+    if (botColor === 'white' && difficultyLevels[currentDifficulty] > 0) {
+        setTimeout(makeBotMove, botMoveDelay);
+    }
+});

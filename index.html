@@ -3,33 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xadrez Simples</title>
-    <link rel="stylesheet" href="style.css"> 
+    <title>Xadrez - Você vs. IA</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Xadrez Simples</h1>
-    
-    <button id="new-game-button">Novo Jogo</button>
-    <br>
-
-    <div class="game-info">
-        <div id="white-timer" class="timer">Brancas: 05:00</div>
-        <div id="turn-indicator">Turno: Brancas</div>
-        <div id="black-timer" class="timer">Pretas: 05:00</div>
-    </div>
-    <br> <div id="chessboard">
+    <div class="game-container">
+        <h1>Jogo de Xadrez</h1>
+        <div class="controls">
+            <button id="new-game-button">Novo Jogo</button>
+            <label for="difficulty-select">Dificuldade da IA:</label>
+            <select id="difficulty-select">
+                <option value="random">Aleatório</option>
+                <option value="easy">Fácil (IA)</option>
+                <option value="medium" selected>Médio (IA)</option>
+                <option value="hard">Difícil (IA)</option>
+            </select>
         </div>
+        <div class="timers">
+            <div id="white-timer" class="timer">Brancas: 05:00</div>
+            <div id="turn-indicator">Turno: Brancas</div>
+            <div id="black-timer" class="timer">Pretas: 05:00</div>
+        </div>
+        <div id="chessboard" class="chessboard"></div>
+    </div>
 
     <div id="promotion-overlay" class="hidden">
         <div class="promotion-choices">
-            <p>Escolha a peça para promover:</p>
-            <button id="promote-queen" data-piece="Q">♕</button>
-            <button id="promote-rook" data-piece="R">♖</button>
-            <button id="promote-bishop" data-piece="B">♗</button>
-            <button id="promote-knight" data-piece="N">♘</button>
+            <p>Promover peão para:</p>
+            <button data-piece="Q">Dama (♛)</button>
+            <button data-piece="R">Torre (♜)</button>
+            <button data-piece="B">Bispo (♝)</button>
+            <button data-piece="N">Cavalo (♞)</button>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chess.js@1.0.0-beta.7/chess.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
