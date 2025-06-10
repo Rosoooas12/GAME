@@ -32,6 +32,7 @@ h1 {
     font-size: 40px; /* Tamanho da fonte para as peças */
     font-weight: bold; /* Deixa o símbolo mais "gordinho" */
     cursor: pointer; /* Indica que a casa é clicável */
+    transition: background-color 0.2s ease; /* Transição suave para o destaque */
 }
 
 /* Cores das casas baseadas nas classes adicionadas pelo JavaScript */
@@ -59,4 +60,19 @@ h1 {
     background-color: #ffd700; /* Dourado */
     border: 2px solid #daa520; /* Borda um pouco mais escura */
     box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+
+/* NOVA CLASSE: Estilo para casas de movimento válidas */
+.square.highlight-move {
+    background-color: #a3d900 !important; /* Verde vibrante. !important para sobrescrever as cores de light/dark */
+    box-shadow: inset 0 0 10px rgba(0,100,0,0.5);
+    border: 2px solid #6b9900;
+}
+
+/* Pequeno ajuste para destacar casas de captura */
+.square.highlight-move.black-piece,
+.square.highlight-move.white-piece {
+    /* Para capturas, podemos adicionar um anel ou borda diferente */
+    outline: 3px solid rgba(255, 0, 0, 0.7); /* Anel vermelho para indicar captura */
+    outline-offset: -3px; /* Coloca o anel para dentro da borda */
 }
