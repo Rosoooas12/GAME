@@ -1,180 +1,191 @@
-/* Estilos globais para o corpo da página */
 body {
-    font-family: Arial, sans-serif; /* Fonte padrão */
-    display: flex; /* Usa flexbox para centralizar o conteúdo */
-    flex-direction: column; /* Organiza os itens em coluna */
-    justify-content: center; /* Centraliza verticalmente na tela */
-    align-items: center; /* Centraliza horizontalmente na tela */
-    min-height: 100vh; /* Garante que o corpo ocupe a altura total da viewport */
-    margin: 0; /* Remove margens padrão do corpo */
-    background-color: #f0f0f0; /* Cor de fundo suave para a página */
-    position: relative; /* Necessário para posicionamento absoluto do overlay */
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column; /* Alinha os elementos em coluna */
+    align-items: center;    /* Centraliza horizontalmente */
+    justify-content: center; /* Centraliza verticalmente se houver espaço */
+    min-height: 100vh;      /* Garante que o body ocupe a altura total da tela */
+    margin: 0;
+    background-color: #f0f0f0;
 }
 
-/* Estilos para o título do jogo */
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px; /* Espaço entre os elementos filhos */
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
 h1 {
-    margin-bottom: 20px; /* Espaço abaixo do título */
-    color: #333; /* Cor do texto do título */
+    margin-top: 0;
+    color: #333;
 }
 
-/* Estilos para o botão de Novo Jogo */
-#new-game-button {
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Espaço entre o botão e o seletor */
+}
+
+.controls button {
     padding: 10px 20px;
-    font-size: 1.1em;
-    background-color: #4CAF50; /* Verde */
+    font-size: 16px;
+    background-color: #4CAF50;
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    margin-bottom: 20px; /* Espaço abaixo do botão */
     transition: background-color 0.3s ease;
 }
 
-#new-game-button:hover {
-    background-color: #45a049; /* Verde um pouco mais escuro no hover */
+.controls button:hover {
+    background-color: #45a049;
 }
 
-/* Contêiner para informações do jogo (relógios e turno) */
-.game-info {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 480px; /* Mesma largura do tabuleiro (8 * 60px) */
-    margin-bottom: 15px;
-    font-size: 1.2em;
-    font-weight: bold;
+.controls label {
+    font-size: 16px;
     color: #555;
 }
 
-.timer {
-    background-color: #eee;
-    padding: 8px 15px;
+.controls select {
+    padding: 8px 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
     border-radius: 5px;
-    min-width: 100px; /* Garante que o texto não "pule" */
+    background-color: #f9f9f9;
+    cursor: pointer;
+}
+
+.timers {
+    display: flex;
+    justify-content: space-around;
+    width: 100%; /* Ajusta a largura para o container */
+    max-width: 480px; /* Mesma largura do tabuleiro para alinhamento */
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    background-color: #eee;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.timer {
+    flex: 1; /* Distribui o espaço igualmente */
     text-align: center;
+    padding: 5px;
+}
+
+.active-timer {
+    background-color: #a0d4ff; /* Cor para o timer do jogador atual */
+    border-radius: 3px;
 }
 
 #turn-indicator {
-    padding: 8px 15px;
-    background-color: #cceeff; /* Cor suave para o indicador de turno */
-    border-radius: 5px;
+    flex: 1;
+    text-align: center;
+    padding: 5px;
+    background-color: #d0efff;
+    border-radius: 3px;
+    margin: 0 10px; /* Espaço entre os timers e o indicador de turno */
 }
 
-/* Estilos para o timer ativo (indicando o turno) */
-.timer.active-timer {
-    background-color: #d4edda; /* Um verde claro */
-    border: 2px solid #28a745; /* Uma borda verde mais escura */
-    color: #218838; /* Cor do texto mais escura */
+.chessboard {
+    display: grid;
+    grid-template-columns: repeat(8, 60px);
+    grid-template-rows: repeat(8, 60px);
+    width: 480px; /* 8 * 60px */
+    height: 480px; /* 8 * 60px */
+    border: 2px solid #333;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
-
-/* Estilos para o contêiner do tabuleiro de xadrez */
-#chessboard {
-    display: grid; /* Usa CSS Grid para criar a grade 8x8 */
-    grid-template-columns: repeat(8, 60px); /* 8 colunas, cada uma com 60px de largura */
-    grid-template-rows: repeat(8, 60px);    /* 8 linhas, cada uma com 60px de altura */
-    border: 3px solid #333; /* Borda escura ao redor do tabuleiro */
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); /* Sombra para dar profundidade */
-    background-color: #f0d9b5; /* Cor de uma das casas para fallback, embora as classes definam */
-}
-
-/* Estilos para cada casa individual do tabuleiro */
 .square {
-    width: 60px; /* Largura da casa */
-    height: 60px; /* Altura da casa */
-    box-sizing: border-box; /* Garante que padding e border não aumentem o tamanho total */
-    display: flex; /* Usa flexbox para centralizar o conteúdo (peça) */
-    justify-content: center; /* Centraliza horizontalmente a peça */
-    align-items: center; /* Centraliza verticalmente a peça */
-    font-size: 40px; /* Tamanho do símbolo da peça */
-    font-weight: bold; /* Negrito para as peças */
-    cursor: pointer; /* Indica que a casa é clicável */
-    transition: background-color 0.2s ease; /* Transição suave para efeitos de hover e seleção */
+    width: 60px;
+    height: 60px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
 }
 
-/* Cores para as casas claras */
-.square.light {
-    background-color: #f0d9b5; /* Cor bege claro */
+.light {
+    background-color: #f0d9b5;
 }
 
-/* Cores para as casas escuras */
-.square.dark {
-    background-color: #b58863; /* Cor marrom médio */
+.dark {
+    background-color: #b58863;
 }
 
-/* Estilos para as peças brancas */
+.selected {
+    background-color: #ffda66; /* Amarelo para casa selecionada */
+}
+
+.highlight-move {
+    background-color: #a7d975; /* Verde para movimentos válidos */
+}
+
+/* Estilos para as peças */
 .white-piece {
-    color: #fff; /* Cor branca para o símbolo da peça */
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7); /* Sombra para melhorar a visibilidade */
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
 }
 
-/* Estilos para as peças pretas */
 .black-piece {
-    color: #333; /* Cor preta para o símbolo da peça */
-    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.7); /* Sombra para melhorar a visibilidade */
+    color: #333;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
 }
 
-/* Estilo para a casa atualmente selecionada */
-.square.selected {
-    background-color: #f7e07a; /* Amarelo para a casa selecionada */
-    border: 2px solid #555; /* Borda para destaque adicional */
-}
-
-/* Estilo para as casas onde a peça selecionada pode mover (destaque de movimento válido) */
-.square.highlight-move {
-    background-color: #79a764; /* Verde suave */
-    box-shadow: inset 0 0 0 3px #4CAF50; /* Borda interna para reforçar o destaque */
-}
-
-/* Estilos para o overlay de promoção (tela que aparece quando um peão é promovido) */
+/* Overlay de Promoção */
 #promotion-overlay {
-    position: absolute; /* Posicionamento absoluto para cobrir a tela */
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7); /* Fundo semi-transparente escuro */
-    display: flex; /* Para centralizar o conteúdo */
-    justify-content: center; /* Centraliza horizontalmente */
-    align-items: center; /* Centraliza verticalmente */
-    z-index: 1000; /* Garante que fique por cima de tudo */
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
 }
 
-/* Estilos para a caixa de escolha das peças na promoção */
+#promotion-overlay.hidden {
+    display: none;
+}
+
 .promotion-choices {
-    background-color: #fff; /* Fundo branco */
-    padding: 30px; /* Espaçamento interno */
-    border-radius: 8px; /* Cantos arredondados */
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Sombra */
-    text-align: center; /* Centraliza o texto e botões */
+    background-color: white;
+    padding: 25px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
-/* Estilos para o parágrafo dentro da caixa de promoção */
 .promotion-choices p {
-    margin-bottom: 20px; /* Espaço abaixo do texto */
-    font-size: 1.2em; /* Tamanho da fonte */
-    color: #333; /* Cor do texto */
+    font-size: 1.2em;
+    margin-bottom: 15px;
+    color: #333;
 }
 
-/* Estilos para os botões de escolha de peça na promoção */
 .promotion-choices button {
-    font-size: 3em; /* Tamanho grande para os símbolos das peças nos botões */
-    padding: 10px 20px; /* Espaçamento interno */
-    margin: 0 10px; /* Margem entre os botões */
-    cursor: pointer; /* Indica que é clicável */
-    background-color: #f0f0f0; /* Cor de fundo do botão */
-    border: 2px solid #ccc; /* Borda do botão */
-    border-radius: 5px; /* Cantos arredondados */
-    transition: background-color 0.2s, border-color 0.2s; /* Transição suave */
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 10px 15px;
+    margin: 5px;
+    font-size: 30px; /* Tamanho grande para as peças de promoção */
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
 }
 
-/* Estilo do botão de promoção ao passar o mouse */
 .promotion-choices button:hover {
-    background-color: #e0e0e0; /* Cor de fundo mais escura no hover */
-    border-color: #999; /* Cor da borda mais escura no hover */
-}
-
-/* Classe para esconder/mostrar o overlay (usada pelo JavaScript) */
-.hidden {
-    display: none !important; /* Esconde o elemento completamente */
+    background-color: #e0e0e0;
 }

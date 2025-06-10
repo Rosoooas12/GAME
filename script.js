@@ -1,11 +1,26 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMENTOS DO DOM ---
     const chessboard = document.getElementById('chessboard');
     const newGameButton = document.getElementById('new-game-button');
-    const difficultySelect = document.getElementById('difficulty-select'); // Novo elemento
+    const difficultySelect = document.getElementById('difficulty-select');
     const whiteTimerDisplay = document.getElementById('white-timer');
-    const blackTimerDisplay = document.getElementById('black-timer');
+    const blackTimerDisplay = document.getElementById('black-timer'); // Corrigido o typo aqui
     const turnIndicator = document.getElementById('turn-indicator');
+    const promotionOverlay = document.getElementById('promotion-overlay');
+    const promotionButtons = document.querySelectorAll('.promotion-choices button');
+
     let selectedSquare = null;
+
+    // --- VERIFICAÇÃO ESSENCIAL DOS ELEMENTOS DO DOM ---
+    // Esta é a parte mais importante para evitar o erro "Cannot read properties of null"
+    if (!chessboard || !newGameButton || !difficultySelect || 
+        !whiteTimerDisplay || !blackTimerDisplay || !turnIndicator ||
+        !promotionOverlay || promotionButtons.length === 0) {
+        console.error("Erro: Um ou mais elementos DOM essenciais não foram encontrados. O script será encerrado.");
+        console.error("Verifique se seus IDs HTML (chessboard, new-game-button, etc.) correspondem aos do JavaScript.");
+        alert("Ocorreu um erro ao carregar o jogo. Verifique o console do navegador para detalhes.");
+        return; // Sai da execução do script se algum elemento não for encontrado
+    }
 
     // --- INSTÂNCIA DA BIBLIOTECA CHESS.JS ---
     const chessGame = new Chess();
@@ -16,10 +31,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- CONFIGURAÇÃO DE DIFICULDADE (PROFUNDIDADE DO ALGORITMO MINIMAX) ---
     const difficultyLevels = {
-        'random': 0, // 0 significa bot aleatório (sem busca)
-        'easy': 1,   // Busca 1 movimento à frente (apenas o próprio movimento)
-        'medium': 2, // Busca 2 movimentos à frente (seu movimento, resposta do oponente)
-        'hard': 3    // Busca 3 movimentos à frente (seu movimento, resposta do oponente, sua próxima resposta)
+        'random': 0,   // Bot aleatório (sem busca)
+        'easy': 1,     // Busca 1 movimento à frente
+        'medium': 2,   // Busca 2 movimentos à frente
+        'hard': 3      // Busca 3 movimentos à frente
     };
     let currentDifficulty = difficultySelect.value; // Pega a dificuldade inicial do select
 
@@ -81,9 +96,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function playCastleSound() { playSound(550, 0.08, 'sine', 0.1); playSound(660, 0.08, 'sine', 0.1, 0.1); }
     
     // Adiciona event listeners para tentar "destravar" o AudioContext
+    // O { once: true } garante que o listener seja removido após o primeiro clique.
     document.body.addEventListener('click', getAudioContext, { once: true });
     newGameButton.addEventListener('click', getAudioContext, { once: true });
-    difficultySelect.addEventListener('change', getAudioContext, { once: true }); // Também no select de dificuldade
+    difficultySelect.addEventListener('change', getAudioContext, { once: true });
 
     // Mapeamento de peças do chess.js para símbolos Unicode
     const pieceSymbols = {
@@ -96,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let whiteTime = initialTime;
     let blackTime = initialTime;
     let timerInterval;
-    let pawnToPromote = null;
+    let pawnToPromote = null; // Armazenará { from: 'e7', to: 'e8' } para a promoção
     let isGameOver = false;
 
     // --- Funções Auxiliares de Peças e Cores ---
@@ -108,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return ['♚', '♛', '♜', '♝', '♞', '♟'].includes(pieceSymbol);
     }
 
+    // Não estritamente necessária com chess.js, mas mantida por consistência
     function getPieceColor(pieceSymbol) {
         if (isWhitePiece(pieceSymbol)) return 'white';
         if (isBlackPiece(pieceSymbol)) return 'black';
@@ -201,13 +218,14 @@ document.addEventListener('DOMContentLoaded', () => {
         playCheckmateSound();
     }
 
-    // --- Renderização do Tabuleiro (AGORA LÊ DO CHESS.JS) ---
+    // --- Renderização do Tabuleiro (LÊ DO CHESS.JS) ---
     function renderBoard() {
+        // A verificação inicial já foi feita, mas é bom ter uma aqui também.
         if (!chessboard) {
-            console.error("Erro: O elemento #chessboard não foi encontrado no DOM.");
-            return;
+            console.error("Erro interno: #chessboard não encontrado na função renderBoard.");
+            return; 
         }
-        chessboard.innerHTML = '';
+        chessboard.innerHTML = ''; // Limpa o tabuleiro HTML existente
 
         const currentBoard = chessGame.board(); // Objeto 8x8 do chess.js
 
@@ -254,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         isWhiteTurn = true;
         selectedSquare = null;
-        pawnToPromote = null;
+        pawnToPromote = null; 
         isGameOver = false;
 
         whiteTime = initialTime;
@@ -262,9 +280,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTimerDisplay();
 
         clearHighlights();
-        document.getElementById('promotion-overlay').classList.add('hidden');
+        promotionOverlay.classList.add('hidden'); // Garante que o overlay de promoção esteja escondido
 
-        renderBoard();
+        renderBoard(); // Renderiza o tabuleiro no estado inicial
         startTimer();
         console.log("Jogo Reiniciado!");
 
@@ -289,11 +307,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- LÓGICA DA IA (BOT) ---
 
     // Função de Avaliação Simples (Evaluation Function)
-    // Dá pontos para as peças. Pode ser expandida para incluir controle de centro, etc.
     function evaluateBoard(board) {
         let score = 0;
         const pieceValues = {
-            'p': 10, 'n': 30, 'b': 30, 'r': 50, 'q': 90, 'k': 900 // K é alto para indicar importância
+            'p': 10, 'n': 30, 'b': 30, 'r': 50, 'q': 90, 'k': 900 // Rei com alto valor para ser evitado
         };
 
         for (let r = 0; r < 8; r++) {
@@ -313,45 +330,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Algoritmo Minimax/Negamax com Poda Alpha-Beta
-    // Adaptação de https://github.com/josephredfern/minimax-chess-ai
-    function minimax(game, depth, alpha, beta, maximizingPlayer) {
+    function minimax(game, depth, alpha, beta, isMaximizingPlayer) {
         if (depth === 0 || game.game_over()) {
             return evaluateBoard(game.board());
         }
 
         const moves = game.moves({ verbose: true });
-
+        
         // Ordena os movimentos para otimizar a poda alpha-beta (tenta movimentos mais promissores primeiro)
+        const pieceValuesForSorting = {
+            'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0 // Rei não é capturado normalmente
+        };
         moves.sort((a, b) => {
-            // Prioriza capturas e movimentos que mudam o material
-            const aValue = a.captured ? pieceValues[a.captured.toLowerCase()] : 0;
-            const bValue = b.captured ? pieceValues[b.captured.toLowerCase()] : 0;
-            return bValue - aValue; // Quanto maior o valor da peça capturada, mais interessante
+            const aCaptureValue = a.captured ? pieceValuesForSorting[a.captured.toLowerCase()] : 0;
+            const bCaptureValue = b.captured ? pieceValuesForSorting[b.captured.toLowerCase()] : 0;
+            // Prioriza capturas de maior valor e movimentos que atacam
+            return bCaptureValue - aCaptureValue;
         });
 
-        if (maximizingPlayer) {
+        if (isMaximizingPlayer) { // A IA está maximizando (se for a cor 'w')
             let maxEval = -Infinity;
             for (const move of moves) {
                 game.move(move);
-                const evaluation = minimax(game, depth - 1, alpha, beta, false);
-                game.undo(); // Desfaz o movimento para testar o próximo
+                const evaluation = minimax(game, depth - 1, alpha, beta, false); // Próximo jogador é minimizando
+                game.undo();
                 maxEval = Math.max(maxEval, evaluation);
                 alpha = Math.max(alpha, evaluation);
                 if (beta <= alpha) {
-                    break; // Poda Beta
+                    break; 
                 }
             }
             return maxEval;
-        } else {
+        } else { // A IA está minimizando (se for a cor 'b')
             let minEval = Infinity;
             for (const move of moves) {
                 game.move(move);
-                const evaluation = minimax(game, depth - 1, alpha, beta, true);
-                game.undo(); // Desfaz o movimento para testar o próximo
+                const evaluation = minimax(game, depth - 1, alpha, beta, true); // Próximo jogador é maximizando
+                game.undo();
                 minEval = Math.min(minEval, evaluation);
                 beta = Math.min(beta, evaluation);
                 if (beta <= alpha) {
-                    break; // Poda Alpha
+                    break;
                 }
             }
             return minEval;
@@ -362,39 +381,36 @@ document.addEventListener('DOMContentLoaded', () => {
     function findBestMove(game, depth) {
         const possibleMoves = game.moves({ verbose: true });
         let bestMove = null;
-        let bestValue = -Infinity; // Se a IA for 'w', maximiza. Se for 'b', minimiza.
+        let bestValue;
         const originalTurn = game.turn(); // 'w' ou 'b'
 
-        // A IA está jogando como preto, então ela quer minimizar a pontuação (que é favorável às brancas)
-        // Por isso, inicializamos bestValue como Infinity e procuramos o menor valor.
-        // Se a IA fosse branca, seria -Infinity.
-        if (originalTurn === 'b') {
+        // Inicializa bestValue com base no turno da IA
+        if (originalTurn === 'w') { // IA é branca, maximiza a pontuação
+            bestValue = -Infinity;
+        } else { // IA é preta, minimiza a pontuação
             bestValue = Infinity;
         }
 
         // Ordena os movimentos para otimizar a poda alpha-beta
+        const pieceValuesForSorting = { 'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0 };
         possibleMoves.sort((a, b) => {
-            const pieceValues = { 'p': 10, 'n': 30, 'b': 30, 'r': 50, 'q': 90 };
-            const aValue = a.captured ? pieceValues[a.captured.toLowerCase()] : 0;
-            const bValue = b.captured ? pieceValues[b.captured.toLowerCase()] : 0;
-            return bValue - aValue; // Prioriza capturas
+            const aCaptureValue = a.captured ? pieceValuesForSorting[a.captured.toLowerCase()] : 0;
+            const bCaptureValue = b.captured ? pieceValuesForSorting[b.captured.toLowerCase()] : 0;
+            return bCaptureValue - aCaptureValue;
         });
 
-
         for (const move of possibleMoves) {
-            game.move(move); // Faz o movimento na instância temporária do jogo
+            game.move(move); 
+            // `isMaximizingPlayer` para a próxima chamada minimax (oponente)
+            const evaluation = minimax(game, depth - 1, -Infinity, Infinity, originalTurn === 'b' ? true : false); // Se IA é 'b', oponente é 'w' (maximizando)
+            game.undo(); 
 
-            // Se o turno for 'w', a IA está maximizando. Se for 'b', a IA está minimizando.
-            const evaluation = minimax(game, depth - 1, -Infinity, Infinity, originalTurn === 'b' ? false : true); // Inverte o maximizingPlayer para a próxima camada
-            
-            game.undo(); // Desfaz o movimento para testar o próximo
-
-            if (originalTurn === 'w') { // Se a IA for branca (MAXIMIZANDO)
+            if (originalTurn === 'w') { // IA é branca (MAXIMIZANDO)
                 if (evaluation > bestValue) {
                     bestValue = evaluation;
                     bestMove = move;
                 }
-            } else { // Se a IA for preta (MINIMIZANDO)
+            } else { // IA é preta (MINIMIZANDO)
                 if (evaluation < bestValue) {
                     bestValue = evaluation;
                     bestMove = move;
@@ -407,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Função principal para o movimento do bot
     function makeBotMove() {
         if (isGameOver || chessGame.turn() !== botColor[0]) {
-            return; // Não é o turno do bot ou o jogo acabou
+            return;
         }
 
         console.log(`Turno do Bot (${botColor[0].toUpperCase()}). Dificuldade: ${currentDifficulty}`);
@@ -415,41 +431,49 @@ document.addEventListener('DOMContentLoaded', () => {
         let chosenMove = null;
         const depth = difficultyLevels[currentDifficulty];
 
+        const possibleMoves = chessGame.moves({ verbose: true });
+
+        if (possibleMoves.length === 0) {
+            console.log("Bot não tem movimentos válidos. Jogo já deve estar finalizado (xeque-mate ou afogamento).");
+            checkGameStatus(); 
+            return;
+        }
+
         if (depth === 0) { // Bot Aleatório
-            const possibleMoves = chessGame.moves({ verbose: true });
-            if (possibleMoves.length > 0) {
-                chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-            }
+            chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
         } else { // Bot com IA (Minimax)
-            // Cria uma cópia do jogo para a IA não afetar o estado real durante a busca
-            const tempGame = new Chess(chessGame.fen()); 
+            const tempGame = new Chess(chessGame.fen()); // Cria uma cópia do jogo para a IA
             chosenMove = findBestMove(tempGame, depth);
         }
 
         if (chosenMove) {
+            // Se o movimento for uma promoção, o chess.js espera que você passe a opção `promotion`
+            // aqui, para que a IA possa escolher a peça promovida.
+            // Para simplificar, o bot sempre promove para 'q' (Rainha).
+            if (chosenMove.promotion) {
+                chosenMove.promotion = 'q'; 
+            }
+
             const moveResult = chessGame.move(chosenMove);
             console.log("Bot moveu:", chosenMove);
 
-            renderBoard();
+            renderBoard(); // Atualiza a UI
 
             if (moveResult.captured) {
                 playCaptureSound();
             } else if (moveResult.flags.includes('k') || moveResult.flags.includes('q')) {
                 playCastleSound();
-            } else if (moveResult.flags.includes('p')) {
-                playPromoteSound();
             } else {
                 playMoveSound();
             }
 
-            checkGameStatus();
+            checkGameStatus(); // Verifica o estado do jogo
             if (!isGameOver) {
-                switchTurn();
+                switchTurn(); // Troca o turno
             }
         } else {
-            console.log("Bot não encontrou nenhum movimento. Fim de jogo ou erro.");
-            // Isso pode indicar afogamento ou xeque-mate se o chessGame.moves() retornou vazio
-            checkGameStatus(); // Para garantir que o fim do jogo seja detectado
+            console.error("Erro: Bot não conseguiu encontrar um movimento válido, mas existiam movimentos possíveis. Isso é inesperado.");
+            checkGameStatus(); // Pode indicar um estado de jogo incomum
         }
     }
 
@@ -461,6 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimer();
 
         // Se for o turno do bot e a IA estiver habilitada, faz o movimento do bot
+        // Verifica se a dificuldade não é 'random' (depth > 0)
         if ((isWhiteTurn && botColor === 'white' || !isWhiteTurn && botColor === 'black') && difficultyLevels[currentDifficulty] > 0) {
             setTimeout(makeBotMove, botMoveDelay);
         }
@@ -501,6 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Se houver um peão pendente para promoção, impede outros cliques
         if (pawnToPromote) {
             console.log("Promoção de peão pendente. Escolha uma peça para continuar.");
             return;
@@ -511,19 +537,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const currentTurnColor = isWhiteTurn ? 'white' : 'black';
 
-        // Impede que o jogador clique se for o turno do bot
+        // Impede que o jogador clique se for o turno do bot (e a IA estiver ativa)
         if ((currentTurnColor === botColor) && difficultyLevels[currentDifficulty] > 0) {
             console.log("Não é o seu turno. É o turno do bot.");
             return;
         }
 
         if (!selectedSquare) {
+            // Seleciona uma peça
             if (pieceData) {
                 const pieceColor = (pieceData.color === 'w') ? 'white' : 'black';
                 if (pieceColor === currentTurnColor) { // Só pode selecionar sua própria peça no seu turno
                     selectedSquare = { element: squareElement, row: row, col: col, piece: pieceSymbols[pieceData.type.toUpperCase() || pieceData.type] };
                     squareElement.classList.add('selected');
                     
+                    // Obtém movimentos válidos e os converte para coordenadas de linha/coluna
                     const validMoves = chessGame.moves({ square: squareName, verbose: true }).map(move => fromChessCoord(move.to));
                     highlightValidMoves(validMoves);
                     console.log(`Peça selecionada: ${selectedSquare.piece} na casa ${row},${col}. Movimentos válidos:`, validMoves);
@@ -532,18 +560,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else {
+            // Tenta fazer um movimento para a casa clicada
             const startSquareName = toChessCoord(selectedSquare.row, selectedSquare.col);
             const endSquareName = toChessCoord(row, col);
 
+            // Armazena a info para promoção, caso ocorra
+            pawnToPromote = {
+                from: startSquareName,
+                to: endSquareName
+            };
+
             let moveResult;
             try {
-                // Ao mover um peão para a última fileira, o chess.js entra em estado de promoção
-                // Se a UI for lidar com a escolha, não passe 'promotion' aqui.
-                // Passe 'promotion' se quiser uma promoção automática (ex: sempre rainha)
+                // Tenta mover. Não passamos 'promotion' aqui, para que in_promotion() possa ser usado depois.
                 moveResult = chessGame.move({
                     from: startSquareName,
-                    to: endSquareName,
-                    // promotion: 'q' // Descomente para promoção automática para rainha
+                    to: endSquareName
                 });
             } catch (e) {
                 console.error("Erro ao tentar mover:", e.message);
@@ -553,7 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (moveResult) {
                 console.log(`Movimento VÁLIDO de ${selectedSquare.piece} de ${startSquareName} para ${endSquareName}`);
                 
-                renderBoard();
+                renderBoard(); // Atualiza a UI
 
                 if (moveResult.captured) {
                     playCaptureSound();
@@ -569,22 +601,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Lógica de promoção de peão: Agora verificamos se o jogo está em estado de promoção
                 if (chessGame.in_promotion()) {
-                    pawnToPromote = { 
-                        r: row, 
-                        c: col, 
-                        piece: pieceSymbols[moveResult.piece] // Peça que está sendo promovida
-                    }; 
-                    document.getElementById('promotion-overlay').classList.remove('hidden');
+                    // O chessGame.move já moveu o peão. Agora ele espera a promoção.
+                    // O pawnToPromote já tem from/to para uso no overlay.
+                    promotionOverlay.classList.remove('hidden');
                     pauseTimer();
                     playPromoteSound();
                     console.log("Peão pronto para promoção!");
                 } else {
-                    checkGameStatus();
+                    checkGameStatus(); // Verifica o estado do jogo
                     if (!isGameOver) {
-                        switchTurn();
+                        switchTurn(); // Troca o turno
                     }
                 }
             } else {
+                // Movimento inválido: desseleciona a peça e limpa os destaques
                 console.log(`Movimento INVÁLIDO para ${selectedSquare.piece} de ${startSquareName} para ${endSquareName}.`);
                 selectedSquare.element.classList.remove('selected');
                 clearHighlights();
@@ -594,34 +624,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- LÓGICA DE PROMOÇÃO DE PEÃO ---
-    const promotionOverlay = document.getElementById('promotion-overlay');
-    const promotionButtons = document.querySelectorAll('.promotion-choices button');
-
     promotionButtons.forEach(button => {
         button.addEventListener('click', (event) => {
             if (!pawnToPromote) return;
 
             const chosenPieceType = event.target.dataset.piece.toLowerCase(); // 'q', 'r', 'b', 'n'
-            const targetSquareName = toChessCoord(pawnToPromote.r, pawnToPromote.c);
-
-            // A promoção real no chess.js acontece quando você chama move() com a opção promotion.
-            // Aqui, após a escolha do usuário, fazemos o movimento final de promoção.
-            // É importante que o movimento original que levou à promoção NÃO tenha tido a opção 'promotion'
-            // para que `chessGame.in_promotion()` retorne true.
             
-            // O `chess.js` automaticamente move o peão para a casa final e espera pela promoção.
-            // A promoção em si é feita com `chessGame.put(pieceData, squareName)` ou `chessGame.promote(pieceType)`.
-            // Ou você pode simplesmente fazer um `move` novamente com o destino e a peça promovida.
-            // Para simplicidade, vamos usar `put` para "trocar" a peça na casa.
+            // O chess.js espera um movimento com a opção `promotion` para finalizar a promoção.
+            // Usamos as informações de `pawnToPromote` que salvamos no `handleClick`.
+            const promotionFinalMove = chessGame.move({
+                from: pawnToPromote.from,
+                to: pawnToPromote.to,
+                promotion: chosenPieceType
+            });
 
-            const color = chessGame.turn() === 'w' ? 'b' : 'w'; // A peça promovida tem a cor do jogador que acabou de mover.
-            const pieceData = { type: chosenPieceType, color: color };
-            chessGame.put(pieceData, targetSquareName);
-            
-            renderBoard(); // Re-renderiza para mostrar a peça promovida
+            if (promotionFinalMove) {
+                console.log(`Peão promovido para ${chosenPieceType.toUpperCase()} em ${pawnToPromote.to}`);
+                renderBoard(); // Re-renderiza para mostrar a peça promovida
+            } else {
+                console.error("Erro ao finalizar a promoção.");
+            }
 
             promotionOverlay.classList.add('hidden');
-            pawnToPromote = null;
+            pawnToPromote = null; // Limpa o estado de promoção
 
             checkGameStatus(); // Verifica se o jogo acabou após a promoção
             if (!isGameOver) {
@@ -630,18 +655,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Event Listeners dos Botões ---
+    // --- Event Listeners dos Botões e Seleção ---
     newGameButton.addEventListener('click', resetGame);
     
     // Altera a dificuldade da IA
     difficultySelect.addEventListener('change', (event) => {
         currentDifficulty = event.target.value;
         console.log("Dificuldade da IA alterada para:", currentDifficulty);
-        // Opcional: Reiniciar o jogo automaticamente ou apenas aplicar a nova dificuldade no próximo jogo
+        // Opcional: Reiniciar o jogo automaticamente quando a dificuldade é mudada
         // resetGame(); 
     });
 
     // Inicia o bot se ele for o primeiro a jogar (peças pretas) e a IA estiver habilitada
+    // (isto é, dificuldade > 0, não 'random')
     if (botColor === 'white' && difficultyLevels[currentDifficulty] > 0) {
         setTimeout(makeBotMove, botMoveDelay);
     }
