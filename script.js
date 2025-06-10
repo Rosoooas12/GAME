@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- ELEMENTOS DO DOM ---
     const chessboard = document.getElementById('chessboard');
-    const startGameButton = document.getElementById('start-game-button'); // Novo botão
+    const startGameButton = document.getElementById('start-game-button');
     const newGameButton = document.getElementById('new-game-button');
     const difficultySelect = document.getElementById('difficulty-select');
     const whiteTimerDisplay = document.getElementById('white-timer');
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const turnIndicator = document.getElementById('turn-indicator');
     const promotionOverlay = document.getElementById('promotion-overlay');
     const promotionButtons = document.querySelectorAll('.promotion-choices button');
-    const gameContent = document.getElementById('game-content'); // Novo elemento para agrupar o conteúdo do jogo
+    const gameContent = document.getElementById('game-content'); // Agrupa o tabuleiro e timers
 
     let selectedSquare = null;
 
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Esta é a parte mais importante para evitar o erro "Cannot read properties of null"
     if (!chessboard || !startGameButton || !newGameButton || !difficultySelect || 
         !whiteTimerDisplay || !blackTimerDisplay || !turnIndicator ||
-        !promotionOverlay || promotionButtons.length === 0 || !gameContent) { // Inclui gameContent na verificação
+        !promotionOverlay || promotionButtons.length === 0 || !gameContent) { 
         console.error("Erro: Um ou mais elementos DOM essenciais não foram encontrados. O script será encerrado.");
         console.error("Verifique se seus IDs HTML (chessboard, start-game-button, new-game-button, difficulty-select, white-timer, black-timer, turn-indicator, promotion-overlay, game-content) correspondem aos do JavaScript.");
         alert("Ocorreu um erro ao carregar o jogo. Verifique o console do navegador para detalhes.");
@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
+        // Tenta resumir o contexto de áudio se ele estiver suspenso (por exemplo, após interação do usuário)
         if (audioContext.state === 'suspended') {
             audioContext.resume().then(() => {
                 console.log('AudioContext resumed!');
@@ -97,9 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function playPromoteSound() { playSound(660, 0.1, 'square', 0.15); }
     function playCastleSound() { playSound(550, 0.08, 'sine', 0.1); playSound(660, 0.08, 'sine', 0.1, 0.1); }
     
-    // Adiciona event listeners para tentar "destravar" o AudioContext
+    // Adiciona event listeners para tentar "destravar" o AudioContext ao primeiro clique do usuário
+    // Isso é necessário em muitos navegadores para que o áudio possa ser reproduzido.
     document.body.addEventListener('click', getAudioContext, { once: true });
-    startGameButton.addEventListener('click', getAudioContext, { once: true }); // Adicionado para o novo botão
+    startGameButton.addEventListener('click', getAudioContext, { once: true }); 
     newGameButton.addEventListener('click', getAudioContext, { once: true });
     difficultySelect.addEventListener('change', getAudioContext, { once: true });
 
@@ -280,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearHighlights();
         promotionOverlay.classList.add('hidden'); 
 
-        renderBoard(); 
+        renderBoard(); // Renderiza o tabuleiro aqui
         startTimer();
         console.log("Jogo Reiniciado!");
 
@@ -435,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (chosenMove) {
+            // Garante que a promoção seja sempre para 'q' (rainha) para o bot
             if (chosenMove.promotion) {
                 chosenMove.promotion = 'q'; 
             }
@@ -458,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             console.error("Erro: Bot não conseguiu encontrar um movimento válido.");
-            checkGameStatus();
+            checkGameStatus(); // Verifica o status do jogo mesmo que o bot não mova
         }
     }
 
@@ -468,6 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTimerDisplay();
         startTimer();
 
+        // Se for o turno do bot e a IA estiver habilitada, faz o movimento do bot
         if ((isWhiteTurn && botColor === 'white' || !isWhiteTurn && botColor === 'black') && difficultyLevels[currentDifficulty] > 0) {
             setTimeout(makeBotMove, botMoveDelay);
         }
@@ -518,18 +522,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const currentTurnColor = isWhiteTurn ? 'white' : 'black';
 
+        // Impede cliques do jogador se for o turno do bot e a IA estiver habilitada
         if ((currentTurnColor === botColor) && difficultyLevels[currentDifficulty] > 0) {
             console.log("Não é o seu turno. É o turno do bot.");
             return;
         }
 
         if (!selectedSquare) {
+            // Seleciona uma peça se houver uma e for do turno correto
             if (pieceData) {
                 const pieceColor = (pieceData.color === 'w') ? 'white' : 'black';
                 if (pieceColor === currentTurnColor) { 
                     selectedSquare = { element: squareElement, row: row, col: col, piece: pieceSymbols[pieceData.type.toUpperCase() || pieceData.type] };
                     squareElement.classList.add('selected');
                     
+                    // Destaca os movimentos válidos para a peça selecionada
                     const validMoves = chessGame.moves({ square: squareName, verbose: true }).map(move => fromChessCoord(move.to));
                     highlightValidMoves(validMoves);
                     console.log(`Peça selecionada: ${selectedSquare.piece} na casa ${row},${col}. Movimentos válidos:`, validMoves);
@@ -538,20 +545,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else {
+            // Tenta mover a peça selecionada para a nova casa
             const startSquareName = toChessCoord(selectedSquare.row, selectedSquare.col);
             const endSquareName = toChessCoord(row, col);
 
-            pawnToPromote = {
-                from: startSquareName,
-                to: endSquareName
-            };
-
+            // Tenta fazer o movimento (incluindo promoções automáticas exceto para o usuário)
             let moveResult;
             try {
-                moveResult = chessGame.move({
-                    from: startSquareName,
-                    to: endSquareName
-                });
+                // Se for um movimento de peão para a última fileira, prepare para promoção
+                const isPawnPromotion = chessGame.get(startSquareName).type === 'p' && 
+                                        ((chessGame.turn() === 'w' && row === 0) || (chessGame.turn() === 'b' && row === 7));
+
+                if (isPawnPromotion) {
+                    // Armazena o movimento para promoção e mostra o overlay
+                    pawnToPromote = { from: startSquareName, to: endSquareName };
+                    promotionOverlay.classList.remove('hidden');
+                    pauseTimer();
+                    playPromoteSound();
+                    console.log("Peão pronto para promoção!");
+                    // Não executa o move final ainda, espera a escolha do usuário
+                    selectedSquare.element.classList.remove('selected');
+                    clearHighlights();
+                    selectedSquare = null;
+                    return; // Sai da função, a promoção será tratada pelos botões do overlay
+                } else {
+                    moveResult = chessGame.move({
+                        from: startSquareName,
+                        to: endSquareName
+                    });
+                }
             } catch (e) {
                 console.error("Erro ao tentar mover:", e.message);
                 moveResult = null;
@@ -560,7 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (moveResult) {
                 console.log(`Movimento VÁLIDO de ${selectedSquare.piece} de ${startSquareName} para ${endSquareName}`);
                 
-                renderBoard(); 
+                renderBoard(); // Renderiza o tabuleiro após o movimento
 
                 if (moveResult.captured) {
                     playCaptureSound();
@@ -574,19 +596,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearHighlights();
                 selectedSquare = null;
 
-                if (chessGame.in_promotion()) {
-                    promotionOverlay.classList.remove('hidden');
-                    pauseTimer();
-                    playPromoteSound();
-                    console.log("Peão pronto para promoção!");
-                } else {
-                    checkGameStatus(); 
-                    if (!isGameOver) {
-                        switchTurn(); 
-                    }
+                checkGameStatus(); // Verifica se o jogo terminou
+                if (!isGameOver) {
+                    switchTurn(); // Passa o turno
                 }
             } else {
                 console.log(`Movimento INVÁLIDO para ${selectedSquare.piece} de ${startSquareName} para ${endSquareName}.`);
+                // Limpa a seleção e os destaques se o movimento for inválido
                 selectedSquare.element.classList.remove('selected');
                 clearHighlights();
                 selectedSquare = null;
@@ -609,17 +625,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (promotionFinalMove) {
                 console.log(`Peão promovido para ${chosenPieceType.toUpperCase()} em ${pawnToPromote.to}`);
-                renderBoard(); 
+                renderBoard(); // Renderiza o tabuleiro após a promoção
             } else {
                 console.error("Erro ao finalizar a promoção.");
             }
 
             promotionOverlay.classList.add('hidden');
-            pawnToPromote = null; 
+            pawnToPromote = null; // Limpa o estado de promoção pendente
 
-            checkGameStatus(); 
+            checkGameStatus(); // Verifica o status do jogo após a promoção
             if (!isGameOver) {
-                switchTurn(); 
+                switchTurn(); // Passa o turno
             }
         });
     });
@@ -634,6 +650,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Não reseta automaticamente, o usuário clica em "Começar Jogo" ou "Novo Jogo"
     });
 
-    // Chamada inicial para mostrar os tempos iniciais, mas o jogo só começa com o botão.
+    // Chamada inicial para mostrar os tempos iniciais e estado do jogo (antes de "Começar Jogo" ser clicado)
     updateTimerDisplay(); 
 });
