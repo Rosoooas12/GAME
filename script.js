@@ -36,7 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function isOpponent(piece1, piece2) {
-        return getPieceColor(piece1) !== getPieceColor(piece2) && piece2 !== '';
+        if (!piece1 || !piece2) return false; // Se uma das peças não existe
+        return getPieceColor(piece1) !== getPieceColor(piece2) && piece2 !== ''; // São de cores diferentes e a peça 2 não é vazia
     }
 
     function isValidPosition(r, c) {
@@ -48,22 +49,25 @@ document.addEventListener('DOMContentLoaded', () => {
     function getPawnMoves(row, col, color) {
         const moves = [];
         const direction = (color === 'white') ? -1 : 1; // -1 para branco (subindo), 1 para preto (descendo)
-        const startRow = (color === 'white') ? 6 : 1; // Linha inicial dos peões
+        const startRow = (color === 'white') ? 6 : 1; // Linha inicial dos peões (0-7)
 
         // Movimento para frente (1 casa)
-        if (isValidPosition(row + direction, col) && boardState[row + direction][col] === '') {
-            moves.push({ r: row + direction, c: col });
+        const oneStepForwardRow = row + direction;
+        if (isValidPosition(oneStepForwardRow, col) && boardState[oneStepForwardRow][col] === '') {
+            moves.push({ r: oneStepForwardRow, c: col });
             // Primeiro movimento (2 casas)
-            if (row === startRow && boardState[row + 2 * direction][col] === '') {
-                moves.push({ r: row + 2 * direction, c: col });
+            const twoStepsForwardRow = row + 2 * direction;
+            if (row === startRow && isValidPosition(twoStepsForwardRow, col) && boardState[twoStepsForwardRow][col] === '' && boardState[oneStepForwardRow][col] === '') {
+                moves.push({ r: twoStepsForwardRow, c: col });
             }
         }
 
         // Captura na diagonal
         const captureCols = [col - 1, col + 1];
         for (const c of captureCols) {
-            if (isValidPosition(row + direction, c) && isOpponent(boardState[row][col], boardState[row + direction][c])) {
-                moves.push({ r: row + direction, c: c });
+            const targetRow = row + direction;
+            if (isValidPosition(targetRow, c) && isOpponent(boardState[row][col], boardState[targetRow][c])) {
+                moves.push({ r: targetRow, c: c });
             }
         }
         return moves;
@@ -220,6 +224,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetSquare = document.getElementById(`sq-<span class="math-inline">\{move\.r\}\-</span>{move.c}`);
             if (targetSquare) {
                 targetSquare.classList.add('highlight-move');
+                // Se a casa tem uma peça, adicione um destaque adicional (anel vermelho)
+                if (targetSquare.textContent !== '') { // Verifica se tem conteúdo (peça)
+                     // A classe highlight-move já cuida do outline, não precisamos adicionar mais nada aqui.
+                     // Apenas garantir que a classe white-piece/black-piece esteja presente para a regra CSS
+                }
             }
         });
     }
@@ -230,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Inicialização do Tabuleiro (Código existente) ---
+    // --- Inicialização do Tabuleiro ---
     for (let i = 0; i < 64; i++) {
         const square = document.createElement('div');
         square.classList.add('square');
@@ -238,7 +247,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = Math.floor(i / 8);
         const col = i % 8;
 
-        square.id = `sq-<span class="math-inline">\{row\}\-</span>{col}`;
+        // ADICIONAR ID ÀS CASAS CORRETAMENTE
+        square.id = `sq-<span class="math-inline">\{row\}\-</span>{col}`; // Isso é CRUCIAL para o highlight funcionar
 
         if ((row + col) % 2 === 0) {
             square.classList.add('light');
@@ -263,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chessboard.appendChild(square);
     }
 
-    // --- Função que lida com o clique em uma casa (Atualizada) ---
+    // --- Função que lida com o clique em uma casa ---
     function handleClick(squareElement, row, col) {
         const pieceInSquare = boardState[row][col];
 
