@@ -1,154 +1,62 @@
 body {
-    font-family: 'Dancing Script', cursive; /* Fonte mais elegante */
-    /* Gradiente de cores românticas com padrão de corações no fundo */
-    background: linear-gradient(to right, #ff69b4, #ff1493), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath fill='%23d147a3' d='M10 17.13L2.63 9.76c-.78-.78-.78-2.05 0-2.83L10 2.37l7.37 4.56c.78.78.78 2.05 0 2.83L10 17.13z'/%3E%3C/svg%3E");
-    background-size: auto, 20px 20px; /* Ajusta o tamanho do padrão de corações */
-    color: #4a4a4a;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    text-align: center;
-}
-
-header {
-    background-color: rgba(255, 255, 255, 0.7); /* Fundo semi-transparente */
-    color: #e91e63; /* Rosa mais forte */
-    padding: 20px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    animation: fadeIn 2s ease-in-out;
-}
-
-h1 {
-    font-size: 3em;
-    margin-bottom: 10px;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-}
-
-main {
-    flex-grow: 1;
-    padding: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    min-height: 100vh; /* Ocupa a altura total da tela */
+    margin: 0;
+    background-color: #f0f0f0; /* Um cinza claro para o fundo da página */
+    font-family: Arial, sans-serif;
 }
 
-section {
-    background-color: rgba(255, 255, 255, 0.9); /* Fundo branco semi-transparente */
-    margin: 20px auto;
-    padding: 30px;
-    border-radius: 15px;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-    max-width: 800px;
-    width: 90%;
-    animation: slideInUp 1s ease-out;
-}
-
-.message-section p {
-    font-size: 1.6em;
-    line-height: 1.8;
-    margin-bottom: 15px;
-    color: #c2185b; /* Vinho para o texto */
-}
-
-.secret-section h2 { /* Ajustado para afetar só a seção secreta agora que as outras foram removidas */
-    color: #f06292; /* Rosa claro para títulos de seção */
-    font-size: 2.5em;
+h1 {
+    color: #333;
     margin-bottom: 20px;
 }
 
-#revealButton {
-    background-color: #f06292; /* Rosa claro para o botão */
-    color: white;
-    padding: 15px 30px;
-    border: none;
-    border-radius: 30px;
-    font-size: 1.5em;
-    cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+#chessboard {
+    display: grid;
+    grid-template-columns: repeat(8, 60px); /* 8 colunas, cada uma com 60px de largura */
+    grid-template-rows: repeat(8, 60px);    /* 8 linhas, cada uma com 60px de altura */
+    border: 2px solid #333; /* Borda para o tabuleiro */
+    box-shadow: 5px 5px 15px rgba(0,0,0,0.3); /* Sombra para dar profundidade */
 }
 
-#revealButton:hover {
-    background-color: #e91e63; /* Rosa mais forte no hover */
-    transform: translateY(-3px);
+.square {
+    width: 60px;
+    height: 60px;
 }
 
-#secretMessage {
-    font-size: 1.8em;
-    color: #c2185b; /* Vinho para a mensagem secreta */
-    margin-top: 20px;
-    padding: 15px;
-    background-color: #fff0f5;
-    border-radius: 10px;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-    animation: popIn 0.8s ease-out;
+/* Regras para colorir as casas alternadamente */
+.square:nth-child(even) { /* Casas pares (2, 4, 6, etc. em cada linha) */
+    background-color: #f0d9b5; /* Cor clara (bege) */
 }
 
-.hidden {
-    display: none;
+.square:nth-child(odd) { /* Casas ímpares (1, 3, 5, etc. em cada linha) */
+    background-color: #b58863; /* Cor escura (marrom) */
 }
 
-footer {
-    background-color: #ad1457; /* Vinho escuro para o rodapé */
-    color: white;
-    padding: 15px;
-    margin-top: auto;
-    font-size: 1.1em;
-    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
+/* Ajuste para alternar corretamente entre as linhas */
+#chessboard .square:nth-child(16n+1),
+#chessboard .square:nth-child(16n+3),
+#chessboard .square:nth-child(16n+5),
+#chessboard .square:nth-child(16n+7),
+#chessboard .square:nth-child(16n+10),
+#chessboard .square:nth-child(16n+12),
+#chessboard .square:nth-child(16n+14),
+#chessboard .square:nth-child(16n+16) {
+    /* Para inverter as cores nas linhas pares */
+    background-color: #b58863; /* Cor escura */
 }
 
-/* Animações */
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes slideInUp {
-    from { transform: translateY(50px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes popIn {
-    0% { transform: scale(0.5); opacity: 0; }
-    80% { transform: scale(1.1); opacity: 1; }
-    100% { transform: scale(1); }
-}
-
-/* Responsividade para telas menores */
-@media (max-width: 768px) {
-    h1 {
-        font-size: 2.5em;
-    }
-    .message-section p {
-        font-size: 1.3em;
-    }
-    #revealButton {
-        font-size: 1.2em;
-        padding: 12px 25px;
-    }
-    #secretMessage {
-        font-size: 1.5em;
-    }
-}
-
-@media (max-width: 480px) {
-    h1 {
-        font-size: 2em;
-    }
-    .message-section p {
-        font-size: 1.1em;
-    }
-    section {
-        padding: 20px;
-    }
-    #revealButton {
-        font-size: 1em;
-        padding: 10px 20px;
-    }
-    #secretMessage {
-        font-size: 1.2em;
-    }
+#chessboard .square:nth-child(16n+2),
+#chessboard .square:nth-child(16n+4),
+#chessboard .square:nth-child(16n+6),
+#chessboard .square:nth-child(16n+8),
+#chessboard .square:nth-child(16n+9),
+#chessboard .square:nth-child(16n+11),
+#chessboard .square:nth-child(16n+13),
+#chessboard .square:nth-child(16n+15) {
+    /* Para inverter as cores nas linhas ímpares */
+    background-color: #f0d9b5; /* Cor clara */
 }
