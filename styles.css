@@ -1,6 +1,8 @@
 body {
     font-family: 'Dancing Script', cursive; /* Fonte mais elegante */
-    background: linear-gradient(to right, #ffdde1, #ee9ca7); /* Gradiente de cores românticas */
+    /* Gradiente de cores românticas com padrão de corações no fundo */
+    background: linear-gradient(to right, #ff69b4, #ff1493), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath fill='%23d147a3' d='M10 17.13L2.63 9.76c-.78-.78-.78-2.05 0-2.83L10 2.37l7.37 4.56c.78.78.78 2.05 0 2.83L10 17.13z'/%3E%3C/svg%3E");
+    background-size: auto, 20px 20px; /* Ajusta o tamanho do padrão de corações */
     color: #4a4a4a;
     margin: 0;
     padding: 0;
@@ -12,7 +14,7 @@ body {
 
 header {
     background-color: rgba(255, 255, 255, 0.7); /* Fundo semi-transparente */
-    color: #d147a3; /* Cor rosa vibrante */
+    color: #e91e63; /* Rosa mais forte */
     padding: 20px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     animation: fadeIn 2s ease-in-out;
@@ -48,46 +50,21 @@ section {
     font-size: 1.6em;
     line-height: 1.8;
     margin-bottom: 15px;
-    color: #883a69; /* Cor de texto mais escura e romântica */
+    color: #c2185b; /* Vinho para o texto */
 }
 
-.image-gallery h2 {
-    color: #d147a3;
+/* As regras para .image-gallery e .music-section não afetarão o site agora,
+   mas podem ser mantidas ou removidas para "limpeza" se você quiser */
+.image-gallery h2, .music-section h2, .secret-section h2 {
+    color: #f06292; /* Rosa claro para títulos de seção */
     font-size: 2.5em;
     margin-bottom: 20px;
 }
+/* Removendo as regras específicas para imagens e áudio que não serão usadas */
+/* .image-container { ... } */
+/* .image-container img { ... } */
+/* audio { ... } */
 
-.image-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 15px;
-}
-
-.image-container img {
-    width: 100%;
-    max-width: 280px;
-    height: auto;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    transition: transform 0.3s ease-in-out;
-}
-
-.image-container img:hover {
-    transform: scale(1.05);
-}
-
-.music-section h2 {
-    color: #d147a3;
-    font-size: 2.5em;
-    margin-bottom: 20px;
-}
-
-audio {
-    width: 80%;
-    max-width: 400px;
-    margin-top: 15px;
-}
 
 .secret-section {
     background-color: #ffe0e6; /* Cor de fundo mais clara para a seção secreta */
@@ -95,7 +72,7 @@ audio {
 }
 
 #revealButton {
-    background-color: #d147a3;
+    background-color: #f06292; /* Rosa claro para o botão */
     color: white;
     padding: 15px 30px;
     border: none;
@@ -107,13 +84,13 @@ audio {
 }
 
 #revealButton:hover {
-    background-color: #a33882;
+    background-color: #e91e63; /* Rosa mais forte no hover */
     transform: translateY(-3px);
 }
 
 #secretMessage {
     font-size: 1.8em;
-    color: #883a69;
+    color: #c2185b; /* Vinho para a mensagem secreta */
     margin-top: 20px;
     padding: 15px;
     background-color: #fff0f5;
@@ -127,7 +104,7 @@ audio {
 }
 
 footer {
-    background-color: rgba(209, 71, 163, 0.8); /* Cor mais escura no rodapé */
+    background-color: #ad1457; /* Vinho escuro para o rodapé */
     color: white;
     padding: 15px;
     margin-top: auto;
@@ -160,9 +137,7 @@ footer {
     .message-section p {
         font-size: 1.3em;
     }
-    .image-container img {
-        max-width: 200px;
-    }
+    /* .image-container img { max-width: 200px; } */ /* Removido */
     #revealButton {
         font-size: 1.2em;
         padding: 12px 25px;
@@ -182,12 +157,8 @@ footer {
     section {
         padding: 20px;
     }
-    .image-container img {
-        max-width: 150px;
-    }
-    audio {
-        width: 100%;
-    }
+    /* .image-container img { max-width: 150px; } */ /* Removido */
+    /* audio { width: 100%; } */ /* Removido */
     #revealButton {
         font-size: 1em;
         padding: 10px 20px;
