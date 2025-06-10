@@ -1,7 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     const chessboard = document.getElementById('chessboard');
-    const newGameButton = document.getElementById('new-game-button'); // Adicionado: Referência ao botão Novo Jogo
-    let selectedSquare = null; // Guarda a casa clicada (peça selecionada)
+    const newGameButton = document.getElementById('new-game-button');
+    const whiteTimerDisplay = document.getElementById('white-timer');
+    const blackTimerDisplay = document.getElementById('black-timer');
+    const turnIndicator = document.getElementById('turn-indicator');
+    let selectedSquare = null;
 
     // Representação do tabuleiro de xadrez no estado inicial com símbolos Unicode
     const initialBoard = [
@@ -16,10 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     // Mapeamento de peças para o array de tabuleiro (estado atual do jogo)
-    // Usamos uma cópia profunda para poder reiniciar o jogo facilmente
     let boardState = initialBoard.map(row => [...row]);
 
     let isWhiteTurn = true; // true para branco, false para preto
+
+    // --- Variáveis do Relógio ---
+    const initialTime = 5 * 60; // 5 minutos em segundos por jogador
+    let whiteTime = initialTime;
+    let blackTime = initialTime;
+    let timerInterval; // Variável para armazenar o ID do setInterval
 
     // --- Variáveis para rastrear movimentos para o Roque (Castling) ---
     let hasWhiteKingMoved = false;
@@ -63,29 +71,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Funções de Movimento para Cada Tipo de Peça (Movimentos Brutos) ---
-    // Estas funções calculam os movimentos base de cada peça,
-    // sem considerar regras complexas como xeque ou roque.
-    // O filtro de xeque é aplicado posteriormente em 'getValidMovesForPiece'.
 
     function getPawnMoves(row, col, color) {
         const moves = [];
-        const direction = (color === 'white') ? -1 : 1; // Peão branco sobe (-1), peão preto desce (+1)
-        const startRow = (color === 'white') ? 6 : 1; // Linha inicial dos peões
+        const direction = (color === 'white') ? -1 : 1;
+        const startRow = (color === 'white') ? 6 : 1;
 
-        // 1. Movimento para frente (uma casa)
         const oneStepForwardRow = row + direction;
         if (isValidPosition(oneStepForwardRow, col) && boardState[oneStepForwardRow][col] === '') {
             moves.push({ r: oneStepForwardRow, c: col });
 
-            // 2. Movimento para frente (duas casas, apenas no primeiro movimento)
             const twoStepsForwardRow = row + 2 * direction;
             if (row === startRow && isValidPosition(twoStepsForwardRow, col) && boardState[twoStepsForwardRow][col] === '') {
                 moves.push({ r: twoStepsForwardRow, c: col });
             }
         }
 
-        // 3. Capturas diagonais
-        const captureCols = [col - 1, col + 1]; // Colunas diagonais (esquerda e direita)
+        const captureCols = [col - 1, col + 1];
         for (const c of captureCols) {
             const targetRow = row + direction;
             if (isValidPosition(targetRow, c) && isOpponent(boardState[row][col], boardState[targetRow][c])) {
@@ -97,28 +99,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getRookMoves(row, col, color) {
         const moves = [];
-        // Direções: cima, baixo, esquerda, direita
         const directions = [
             { dr: -1, dc: 0 }, { dr: 1, dc: 0 },
             { dr: 0, dc: -1 }, { dr: 0, dc: 1 }
         ];
-        const piece = boardState[row][col]; // Peça atual
+        const piece = boardState[row][col];
 
         for (const dir of directions) {
-            for (let i = 1; i < 8; i++) { // Percorre até 7 casas em cada direção
+            for (let i = 1; i < 8; i++) {
                 const newRow = row + i * dir.dr;
                 const newCol = col + i * dir.dc;
 
-                if (!isValidPosition(newRow, newCol)) break; // Sai se fora do tabuleiro
+                if (!isValidPosition(newRow, newCol)) break;
 
                 const targetPiece = boardState[newRow][newCol];
                 if (targetPiece === '') {
-                    moves.push({ r: newRow, c: newCol }); // Casa vazia: pode mover
+                    moves.push({ r: newRow, c: newCol });
                 } else {
                     if (isOpponent(piece, targetPiece)) {
-                        moves.push({ r: newRow, c: newCol }); // Peça inimiga: pode capturar
+                        moves.push({ r: newRow, c: newCol });
                     }
-                    break; // Para de procurar nesta direção após encontrar qualquer peça
+                    break;
                 }
             }
         }
@@ -127,7 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getBishopMoves(row, col, color) {
         const moves = [];
-        // Direções: diagonais (cima-esquerda, cima-direita, baixo-esquerda, baixo-direita)
         const directions = [
             { dr: -1, dc: -1 }, { dr: -1, dc: 1 },
             { dr: 1, dc: -1 }, { dr: 1, dc: 1 }
@@ -156,13 +156,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getQueenMoves(row, col, color) {
-        // A Rainha combina os movimentos da Torre e do Bispo
         return [...getRookMoves(row, col, color), ...getBishopMoves(row, col, color)];
     }
 
     function getKnightMoves(row, col, color) {
         const moves = [];
-        // Todos os 8 movimentos em 'L' de um cavalo
         const knightLMoves = [
             { dr: -2, dc: -1 }, { dr: -2, dc: 1 },
             { dr: -1, dc: -2 }, { dr: -1, dc: 2 },
@@ -177,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isValidPosition(newRow, newCol)) {
                 const targetPiece = boardState[newRow][newCol];
-                // Pode mover para casa vazia ou capturar peça inimiga
                 if (targetPiece === '' || isOpponent(piece, targetPiece)) {
                     moves.push({ r: newRow, c: newCol });
                 }
@@ -188,7 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getKingMoves(row, col, color) {
         const moves = [];
-        // Todas as 8 direções adjacentes
         const directions = [
             { dr: -1, dc: -1 }, { dr: -1, dc: 0 }, { dr: -1, dc: 1 },
             { dr: 0, dc: -1 },                       { dr: 0, dc: 1 },
@@ -202,7 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isValidPosition(newRow, newCol)) {
                 const targetPiece = boardState[newRow][newCol];
-                // Pode mover para casa vazia ou capturar peça inimiga
                 if (targetPiece === '' || isOpponent(piece, targetPiece)) {
                     moves.push({ r: newRow, c: newCol });
                 }
@@ -210,35 +205,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // --- LÓGICA DO ROQUE (CASTLING) ---
-        // Adiciona movimentos de roque se as condições forem atendidas.
-        // A validação de xeque (rei não está em xeque, não passa por xeque, não termina em xeque)
-        // é feita simulando os movimentos e chamando isKingInCheck.
-
         if (color === 'white') {
             // Roque Lado do Rei (King-side Castling - para g1)
-            // Condições: Rei não se moveu, Torre do lado do Rei não se moveu
             if (!hasWhiteKingMoved && !hasWhiteRookKingSideMoved) {
-                // Casas entre o Rei e a Torre (f1 e g1) devem estar vazias
                 if (boardState[7][5] === '' && boardState[7][6] === '') {
-                    // O Rei não pode estar em xeque para iniciar o roque (posição atual)
                     if (!isKingInCheck('white')) {
-                        // Simula mover o Rei para f1 (passar por xeque)
-                        boardState[7][5] = '♔';
-                        boardState[7][4] = ''; // Casa antiga do Rei
+                        boardState[7][5] = '♔'; boardState[7][4] = '';
                         const isPassingThroughCheck = isKingInCheck('white');
-                        boardState[7][4] = '♔'; // Desfaz simulação
-                        boardState[7][5] = ''; // Casa f1 vazia novamente
+                        boardState[7][4] = '♔'; boardState[7][5] = '';
 
-                        if (!isPassingThroughCheck) { // Se não passa por xeque
-                            // Simula mover o Rei para g1 (terminar em xeque)
-                            boardState[7][6] = '♔';
-                            boardState[7][4] = ''; // Casa antiga do Rei
+                        if (!isPassingThroughCheck) {
+                            boardState[7][6] = '♔'; boardState[7][4] = '';
                             const isEndingInCheck = isKingInCheck('white');
-                            boardState[7][4] = '♔'; // Desfaz simulação
-                            boardState[7][6] = ''; // Casa g1 vazia novamente
+                            boardState[7][4] = '♔'; boardState[7][6] = '';
 
-                            if (!isEndingInCheck) { // Se não termina em xeque
-                                // Adiciona o movimento de roque. 'isCastling' é uma flag para o handleClick.
+                            if (!isEndingInCheck) {
                                 moves.push({ r: 7, c: 6, isCastling: true, rookFrom: {r: 7, c: 7}, rookTo: {r: 7, c: 5} });
                             }
                         }
@@ -247,25 +228,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Roque Lado da Rainha (Queen-side Castling - para c1)
-            // Condições: Rei não se moveu, Torre do lado da Rainha não se moveu
             if (!hasWhiteKingMoved && !hasWhiteRookQueenSideMoved) {
-                // Casas entre o Rei e a Torre (b1, c1, d1) devem estar vazias
                 if (boardState[7][1] === '' && boardState[7][2] === '' && boardState[7][3] === '') {
-                    if (!isKingInCheck('white')) { // Não pode estar em xeque para iniciar o roque
-                        // Simula mover o Rei para d1 (passar por xeque)
-                        boardState[7][3] = '♔';
-                        boardState[7][4] = '';
+                    if (!isKingInCheck('white')) {
+                        boardState[7][3] = '♔'; boardState[7][4] = '';
                         const isPassingThroughCheck = isKingInCheck('white');
-                        boardState[7][4] = '♔';
-                        boardState[7][3] = '';
+                        boardState[7][4] = '♔'; boardState[7][3] = '';
 
                         if (!isPassingThroughCheck) {
-                            // Simula mover o Rei para c1 (terminar em xeque)
-                            boardState[7][2] = '♔';
-                            boardState[7][4] = '';
+                            boardState[7][2] = '♔'; boardState[7][4] = '';
                             const isEndingInCheck = isKingInCheck('white');
-                            boardState[7][4] = '♔';
-                            boardState[7][2] = '';
+                            boardState[7][4] = '♔'; boardState[7][2] = '';
 
                             if (!isEndingInCheck) {
                                 moves.push({ r: 7, c: 2, isCastling: true, rookFrom: {r: 7, c: 0}, rookTo: {r: 7, c: 3} });
@@ -274,23 +247,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-        } else { // Roque para as peças pretas (lógica idêntica, apenas mudam as linhas e a cor)
+        } else { // Roque para as peças pretas
             // Roque Lado do Rei (King-side Castling - para g8)
             if (!hasBlackKingMoved && !hasBlackRookKingSideMoved) {
                 if (boardState[0][5] === '' && boardState[0][6] === '') {
                     if (!isKingInCheck('black')) {
-                        boardState[0][5] = '♚';
-                        boardState[0][4] = '';
+                        boardState[0][5] = '♚'; boardState[0][4] = '';
                         const isPassingThroughCheck = isKingInCheck('black');
-                        boardState[0][4] = '♚';
-                        boardState[0][5] = '';
+                        boardState[0][4] = '♚'; boardState[0][5] = '';
 
                         if (!isPassingThroughCheck) {
-                            boardState[0][6] = '♚';
-                            boardState[0][4] = '';
+                            boardState[0][6] = '♚'; boardState[0][4] = '';
                             const isEndingInCheck = isKingInCheck('black');
-                            boardState[0][4] = '♚';
-                            boardState[0][6] = '';
+                            boardState[0][4] = '♚'; boardState[0][6] = '';
 
                             if (!isEndingInCheck) {
                                 moves.push({ r: 0, c: 6, isCastling: true, rookFrom: {r: 0, c: 7}, rookTo: {r: 0, c: 5} });
@@ -304,18 +273,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hasBlackKingMoved && !hasBlackRookQueenSideMoved) {
                 if (boardState[0][1] === '' && boardState[0][2] === '' && boardState[0][3] === '') {
                     if (!isKingInCheck('black')) {
-                        boardState[0][3] = '♚';
-                        boardState[0][4] = '';
+                        boardState[0][3] = '♚'; boardState[0][4] = '';
                         const isPassingThroughCheck = isKingInCheck('black');
-                        boardState[0][4] = '♚';
-                        boardState[0][3] = '';
+                        boardState[0][4] = '♚'; boardState[0][3] = '';
 
                         if (!isPassingThroughCheck) {
-                            boardState[0][2] = '♚';
-                            boardState[0][4] = '';
+                            boardState[0][2] = '♚'; boardState[0][4] = '';
                             const isEndingInCheck = isKingInCheck('black');
-                            boardState[0][4] = '♚';
-                            boardState[0][2] = '';
+                            boardState[0][4] = '♚'; boardState[0][2] = '';
 
                             if (!isEndingInCheck) {
                                 moves.push({ r: 0, c: 2, isCastling: true, rookFrom: {r: 0, c: 0}, rookTo: {r: 0, c: 3} });
@@ -334,7 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const opponentColor = (kingColor === 'white') ? 'black' : 'white';
         const kingPiece = (kingColor === 'white') ? '♔' : '♚';
 
-        // 1. Encontrar a posição do Rei da cor especificada
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 if (boardState[r][c] === kingPiece) {
@@ -346,15 +310,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (kingRow !== undefined) break;
         }
 
-        if (kingRow === undefined) return false; // Rei não encontrado (situação inválida no jogo)
+        if (kingRow === undefined) return false;
 
-        // 2. Iterar sobre todas as casas do tabuleiro
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
                 const piece = boardState[r][c];
-                // 3. Se a peça é do oponente
                 if (piece !== '' && getPieceColor(piece) === opponentColor) {
-                    // 4. Obter todos os movimentos "brutos" que esta peça do oponente PODE FAZER.
                     const getRawMovesForPiece = (r, c) => {
                         const p = boardState[r][c];
                         const col = getPieceColor(p);
@@ -364,22 +325,21 @@ document.addEventListener('DOMContentLoaded', () => {
                             case '♗': case '♝': return getBishopMoves(r, c, col);
                             case '♕': case '♛': return getQueenMoves(r, c, col);
                             case '♘': case '♞': return getKnightMoves(r, c, col);
-                            case '♔': case '♚': return getKingMoves(r, c, col).filter(move => !move.isCastling); // Exclui roque para não recursar infinitamente
+                            case '♔': case '♚': return getKingMoves(r, c, col).filter(move => !move.isCastling);
                             default: return [];
                         }
                     };
                     const potentialAttacks = getRawMovesForPiece(r, c);
 
-                    // 5. Verificar se algum desses movimentos atinge a posição do Rei
                     for (const attackMove of potentialAttacks) {
                         if (attackMove.r === kingRow && attackMove.c === kingCol) {
-                            return true; // Rei está em xeque
+                            return true;
                         }
                     }
                 }
             }
         }
-        return false; // Rei não está em xeque
+        return false;
     }
 
     // --- Função Central para Obter Todos os Movimentos Válidos de uma Peça ---
@@ -388,42 +348,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const color = getPieceColor(piece);
         let moves = [];
 
-        // Primeiro, obtenha os movimentos "brutos" da peça (incluindo possíveis roques)
         switch (piece) {
             case '♙': case '♟': moves = getPawnMoves(row, col, color); break;
             case '♖': case '♜': moves = getRookMoves(row, col, color); break;
             case '♗': case '♝': moves = getBishopMoves(row, col, color); break;
             case '♕': case '♛': moves = getQueenMoves(row, col, color); break;
             case '♘': case '♞': moves = getKnightMoves(row, col, color); break;
-            case '♔': case '♚': moves = getKingMoves(row, col, color); break; // getKingMoves já inclui a lógica do roque e suas validações de xeque
+            case '♔': case '♚': moves = getKingMoves(row, col, color); break;
             default: moves = [];
         }
 
-        // Filtra os movimentos que colocariam o PRÓPRIO Rei em xeque
         const filteredMoves = moves.filter(move => {
-            // Para movimentos de roque, a validação de xeque (passar por e terminar em xeque)
-            // já foi realizada dentro da função getKingMoves. Então, se é um roque válido, já é aceito.
             if (move.isCastling) {
                 return true;
             }
 
-            // Para movimentos normais:
-            // 1. Simular o movimento temporariamente no boardState
             const originalPiece = boardState[row][col];
-            const targetPiece = boardState[move.r][move.c]; // Peça que está na casa de destino (pode ser vazia ou inimiga)
+            const targetPiece = boardState[move.r][move.c];
             
-            boardState[move.r][move.c] = originalPiece; // Move a peça para a nova posição
-            boardState[row][col] = ''; // Esvazia a posição original
+            boardState[move.r][move.c] = originalPiece;
+            boardState[row][col] = '';
 
-            // 2. Verificar se o Rei do jogador atual está em xeque após essa simulação
             const kingColor = getPieceColor(originalPiece);
             const isInCheckAfterMove = isKingInCheck(kingColor);
 
-            // 3. Desfazer o movimento simulado para restaurar o estado do tabuleiro
             boardState[row][col] = originalPiece;
-            boardState[move.r][move.c] = targetPiece; // Restaura a peça que estava na casa de destino
+            boardState[move.r][move.c] = targetPiece;
 
-            // 4. O movimento é válido SOMENTE se o rei não estiver em xeque após a simulação
             return !isInCheckAfterMove;
         });
 
@@ -438,12 +389,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (piece !== '' && getPieceColor(piece) === playerColor) {
                     const moves = getValidMovesForPiece(r, c);
                     if (moves.length > 0) {
-                        return true; // Encontrou pelo menos um movimento legal
+                        return true;
                     }
                 }
             }
         }
-        return false; // Não encontrou nenhum movimento legal para nenhuma peça
+        return false;
     }
 
     // --- Funções para Destacar Casas no Tabuleiro ---
@@ -462,6 +413,77 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Funções do Relógio ---
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimerDisplay() {
+        whiteTimerDisplay.textContent = `Brancas: ${formatTime(whiteTime)}`;
+        blackTimerDisplay.textContent = `Pretas: ${formatTime(blackTime)}`;
+        turnIndicator.textContent = `Turno: ${isWhiteTurn ? 'Brancas' : 'Pretas'}`;
+
+        if (!isGameOver) {
+            if (isWhiteTurn) {
+                whiteTimerDisplay.classList.add('active-timer');
+                blackTimerDisplay.classList.remove('active-timer');
+            } else {
+                blackTimerDisplay.classList.add('active-timer');
+                whiteTimerDisplay.classList.remove('active-timer');
+            }
+        } else {
+            // Remove destaque de timer ativo quando o jogo termina
+            whiteTimerDisplay.classList.remove('active-timer');
+            blackTimerDisplay.classList.remove('active-timer');
+        }
+    }
+
+    function startTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+        }
+
+        timerInterval = setInterval(() => {
+            if (isGameOver) {
+                clearInterval(timerInterval);
+                return;
+            }
+
+            if (isWhiteTurn) {
+                whiteTime--;
+                if (whiteTime <= 0) {
+                    whiteTime = 0;
+                    updateTimerDisplay();
+                    handleTimeOut('Brancas');
+                    clearInterval(timerInterval);
+                    return;
+                }
+            } else {
+                blackTime--;
+                if (blackTime <= 0) {
+                    blackTime = 0;
+                    updateTimerDisplay();
+                    handleTimeOut('Pretas');
+                    clearInterval(timerInterval);
+                    return;
+                }
+            }
+            updateTimerDisplay();
+        }, 1000);
+    }
+
+    function pauseTimer() {
+        clearInterval(timerInterval);
+    }
+
+    function handleTimeOut(playerColor) {
+        isGameOver = true;
+        alert(`FIM DE JOGO! O tempo do jogador ${playerColor} acabou. O jogador ${playerColor === 'Brancas' ? 'Pretas' : 'Brancas'} venceu por tempo!`);
+        console.log(`FIM DE JOGO! O tempo do jogador ${playerColor} acabou.`);
+    }
+
     // --- Função para Renderizar o Tabuleiro (útil para reiniciar o jogo) ---
     function renderBoard() {
         chessboard.innerHTML = ''; // Limpa o tabuleiro HTML existente
@@ -475,7 +497,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             square.id = 'sq-' + row + '-' + col; // Define um ID para cada casa (ex: sq-0-0)
 
-            // Adiciona classes para as cores das casas (clara ou escura)
             if ((row + col) % 2 === 0) {
                 square.classList.add('light');
             } else {
@@ -484,8 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const piece = boardState[row][col];
             if (piece) {
-                square.textContent = piece; // Define o símbolo da peça
-                // Adiciona classes para estilizar as cores das peças
+                square.textContent = piece;
                 if (isBlackPiece(piece)) {
                     square.classList.add('black-piece');
                 } else if (isWhitePiece(piece)) {
@@ -493,24 +513,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Adiciona um 'listener' de clique para cada casa
             square.addEventListener('click', () => {
                 handleClick(square, row, col);
             });
 
-            chessboard.appendChild(square); // Adiciona a casa ao tabuleiro HTML
+            chessboard.appendChild(square);
         }
     }
 
-    // Chamada inicial para renderizar o tabuleiro quando a página carrega
+    // Chamada inicial para renderizar o tabuleiro e iniciar o relógio
     renderBoard();
+    updateTimerDisplay(); // Atualiza os displays antes de iniciar o jogo
+    startTimer(); // Inicia o relógio assim que o jogo carrega
 
     // --- Função de Reinício do Jogo ---
     function resetGame() {
-        // Redefine o boardState para o tabuleiro inicial
         boardState = initialBoard.map(row => [...row]); 
 
-        // Redefine todas as variáveis de estado para seus valores iniciais
         isWhiteTurn = true;
         selectedSquare = null;
         hasWhiteKingMoved = false;
@@ -520,197 +539,170 @@ document.addEventListener('DOMContentLoaded', () => {
         hasBlackRookKingSideMoved = false;
         hasBlackRookQueenSideMoved = false;
         pawnToPromote = null;
-        isGameOver = false; // Importante: resetar o flag de fim de jogo
+        isGameOver = false;
 
-        clearHighlights(); // Limpa quaisquer destaques antigos
-        document.getElementById('promotion-overlay').classList.add('hidden'); // Garante que o overlay de promoção esteja escondido
+        // Reseta o tempo para o valor inicial
+        whiteTime = initialTime;
+        blackTime = initialTime;
+        updateTimerDisplay(); // Atualiza o display do relógio imediatamente
 
-        renderBoard(); // Redesenha o tabuleiro com as peças nas posições iniciais
+        clearHighlights();
+        document.getElementById('promotion-overlay').classList.add('hidden');
+
+        renderBoard();
+        // Reinicia o timer para o novo jogo
+        startTimer();
         console.log("Jogo Reiniciado!");
     }
 
     // --- Função que lida com o clique em uma casa do tabuleiro ---
     function handleClick(squareElement, row, col) {
-        // Bloqueia cliques se o jogo já terminou
         if (isGameOver) {
             console.log("O jogo terminou. Inicie um novo jogo.");
             return;
         }
 
-        // Bloqueia cliques se houver uma promoção pendente
         if (pawnToPromote) {
             console.log("Promoção de peão pendente. Escolha uma peça para continuar.");
-            return; // Não permite nenhuma outra interação até a promoção ser resolvida
+            return;
         }
 
         const pieceInSquare = boardState[row][col];
 
         if (!selectedSquare) {
-            // CASO 1: Nenhuma peça está selecionada, então tentamos selecionar uma.
-            if (pieceInSquare !== '') { // Se a casa clicada não está vazia
+            if (pieceInSquare !== '') {
                 const pieceColor = getPieceColor(pieceInSquare);
-                // Verifica se a peça clicada pertence ao jogador do turno atual
                 if ((isWhiteTurn && pieceColor === 'white') || (!isWhiteTurn && pieceColor === 'black')) {
                     selectedSquare = { element: squareElement, row: row, col: col, piece: pieceInSquare };
-                    squareElement.classList.add('selected'); // Adiciona destaque visual à peça selecionada
+                    squareElement.classList.add('selected');
                     
-                    const validMoves = getValidMovesForPiece(row, col); // Obtém e filtra os movimentos válidos
-                    highlightValidMoves(validMoves); // Destaca as casas para onde a peça pode mover
+                    const validMoves = getValidMovesForPiece(row, col);
+                    highlightValidMoves(validMoves);
                     console.log(`Peça selecionada: ${pieceInSquare} na casa ${row},${col}. Movimentos válidos:`, validMoves);
                 } else {
                     console.log(`Não é o turno da peça ${pieceInSquare}.`);
                 }
             }
         } else {
-            // CASO 2: Uma peça já está selecionada.
-            // Subcaso 2a: Clicou na mesma peça selecionada novamente (para deselecionar)
-            if (selectedSquare.row === row && selectedSquare.col === col) {
-                selectedSquare.element.classList.remove('selected');
-                clearHighlights();
-                selectedSquare = null;
-                console.log('Peça deselecionada.');
-            } else {
-                // Subcaso 2b: Clicou em outra casa para tentar mover a peça selecionada.
-                const startRow = selectedSquare.row;
-                const startCol = selectedSquare.col;
-                const endRow = row;
-                const endCol = col;
+            const startRow = selectedSquare.row;
+            const startCol = selectedSquare.col;
+            const endRow = row;
+            const endCol = col;
 
-                // Obtém os movimentos válidos (já filtrados para não deixar o rei em xeque)
-                const possibleMoves = getValidMovesForPiece(startRow, startCol); 
-                // Verifica se a casa clicada é um dos movimentos permitidos
-                const moveAttempt = possibleMoves.find(move => move.r === endRow && move.c === endCol);
+            const possibleMoves = getValidMovesForPiece(startRow, startCol); 
+            const moveAttempt = possibleMoves.find(move => move.r === endRow && move.c === endCol);
 
-                if (moveAttempt) { // Se o movimento é permitido (seja normal ou roque)
-                    console.log(`Movimento VÁLIDO de ${selectedSquare.piece} de ${startRow},${startCol} para ${endRow},${endCol}`);
+            if (moveAttempt) {
+                console.log(`Movimento VÁLIDO de ${selectedSquare.piece} de ${startRow},${startCol} para ${endRow},${endCol}`);
 
-                    // === Realiza o Movimento no Estado Lógico e Visual ===
-                    const pieceToMove = selectedSquare.piece;
+                const pieceToMove = selectedSquare.piece;
 
-                    if (moveAttempt.isCastling) { // É um movimento de Roque
-                        console.log("Realizando Roque!");
-                        // Move o Rei (lógica)
-                        boardState[endRow][endCol] = pieceToMove; // Rei vai para a casa de roque (G1/G8 ou C1/C8)
-                        boardState[startRow][startCol] = '';     // Casa antiga do Rei vazia
+                if (moveAttempt.isCastling) {
+                    console.log("Realizando Roque!");
+                    boardState[endRow][endCol] = pieceToMove;
+                    boardState[startRow][startCol] = '';
 
-                        // Move a Torre (lógica)
-                        const rookPiece = boardState[moveAttempt.rookFrom.r][moveAttempt.rookFrom.c];
-                        boardState[moveAttempt.rookTo.r][moveAttempt.rookTo.c] = rookPiece; // Torre vai para a nova posição (F1/F8 ou D1/D8)
-                        boardState[moveAttempt.rookFrom.r][moveAttempt.rookFrom.c] = ''; // Casa antiga da Torre vazia
+                    const rookPiece = boardState[moveAttempt.rookFrom.r][moveAttempt.rookFrom.c];
+                    boardState[moveAttempt.rookTo.r][moveAttempt.rookTo.c] = rookPiece;
+                    boardState[moveAttempt.rookFrom.r][moveAttempt.rookFrom.c] = '';
 
-                        // Atualiza o visual das casas do Rei e da Torre
-                        selectedSquare.element.textContent = ''; // Antiga casa do Rei
-                        document.getElementById(`sq-${moveAttempt.rookFrom.r}-${moveAttempt.rookFrom.c}`).textContent = ''; // Antiga casa da Torre
+                    selectedSquare.element.textContent = '';
+                    document.getElementById(`sq-${moveAttempt.rookFrom.r}-${moveAttempt.rookFrom.c}`).textContent = '';
 
-                        squareElement.textContent = pieceToMove; // Nova casa do Rei
-                        const rookToElement = document.getElementById(`sq-${moveAttempt.rookTo.r}-${moveAttempt.rookTo.c}`);
-                        rookToElement.textContent = rookPiece; // Nova casa da Torre
+                    squareElement.textContent = pieceToMove;
+                    const rookToElement = document.getElementById(`sq-${moveAttempt.rookTo.r}-${moveAttempt.rookTo.c}`);
+                    rookToElement.textContent = rookPiece;
 
-                        // Ajustar classes de cor para as peças movidas (Rei e Torre)
-                        // Para o Rei:
-                        squareElement.classList.remove('white-piece', 'black-piece');
-                        if (isWhitePiece(pieceToMove)) {
-                            squareElement.classList.add('white-piece');
-                        } else if (isBlackPiece(pieceToMove)) {
-                            squareElement.classList.add('black-piece');
-                        }
-                        // Para a Torre:
-                        rookToElement.classList.remove('white-piece', 'black-piece');
-                        if (isWhitePiece(rookPiece)) {
-                            rookToElement.classList.add('white-piece');
-                        } else if (isBlackPiece(rookPiece)) {
-                            rookToElement.classList.add('black-piece');
-                        }
-
-                    } else { // É um movimento normal (não é roque)
-                        // Move a peça (lógica)
-                        boardState[endRow][endCol] = pieceToMove;
-                        boardState[startRow][startCol] = '';
-
-                        // Atualiza o visual
-                        selectedSquare.element.textContent = ''; // Antiga casa fica vazia
-                        squareElement.textContent = pieceToMove; // Nova casa recebe a peça
-
-                        // Ajusta as classes de cor da peça na nova casa
-                        squareElement.classList.remove('white-piece', 'black-piece'); 
-                        if (isWhitePiece(pieceToMove)) {
-                            squareElement.classList.add('white-piece');
-                        } else if (isBlackPiece(pieceToMove)) {
-                            squareElement.classList.add('black-piece');
-                        }
+                    squareElement.classList.remove('white-piece', 'black-piece');
+                    if (isWhitePiece(pieceToMove)) {
+                        squareElement.classList.add('white-piece');
+                    } else if (isBlackPiece(pieceToMove)) {
+                        squareElement.classList.add('black-piece');
                     }
-                    // Remove a classe 'selected' da casa inicial APÓS o movimento (para Rei ou qualquer peça)
-                    selectedSquare.element.classList.remove('selected'); 
-                    // === Fim da Realização do Movimento (normal ou roque) ===
-                    
-                    // --- ATUALIZAR STATUS DE MOVIMENTO PARA ROQUE ---
-                    // Registra que o Rei ou as Torres se moveram, impedindo futuros roques com essas peças.
-                    if (pieceToMove === '♔') {
-                        hasWhiteKingMoved = true;
-                    } else if (pieceToMove === '♚') {
-                        hasBlackKingMoved = true;
-                    } 
-                    // As torres são identificadas pela peça e pela posição inicial
-                    else if (pieceToMove === '♖' && startRow === 7 && startCol === 7) { // Torre branca do lado do Rei (H1)
-                        hasWhiteRookKingSideMoved = true;
-                    } else if (pieceToMove === '♖' && startRow === 7 && startCol === 0) { // Torre branca do lado da Rainha (A1)
-                        hasWhiteRookQueenSideMoved = true;
-                    } else if (pieceToMove === '♜' && startRow === 0 && startCol === 7) { // Torre preta do lado do Rei (H8)
-                        hasBlackRookKingSideMoved = true;
-                    } else if (pieceToMove === '♜' && startRow === 0 && startCol === 0) { // Torre preta do lado da Rainha (A8)
-                        hasBlackRookQueenSideMoved = true;
-                    }
-                    // --- FIM DA ATUALIZAÇÃO DO STATUS DE MOVIMENTO ---
-
-                    // Sempre limpa os destaques e o selectedSquare
-                    clearHighlights();
-                    selectedSquare = null;
-
-                    // --- VERIFICAÇÃO DE PROMOÇÃO DE PEÃO ---
-                    // A promoção só acontece para peões que chegam na última fileira
-                    if ((pieceToMove === '♙' && endRow === 0) || (pieceToMove === '♟' && endRow === 7)) {
-                        pawnToPromote = { r: endRow, c: endCol, piece: pieceToMove }; // Armazena a info do peão
-                        document.getElementById('promotion-overlay').classList.remove('hidden'); // Mostra o overlay
-                        // NOTA: O turno NÃO é trocado aqui. Ele será trocado APENAS após a escolha da promoção.
-                        console.log("Peão pronto para promoção!");
-                    } else {
-                        // Se não há promoção, troca o turno normalmente
-                        isWhiteTurn = !isWhiteTurn;
-                        console.log(`Turno agora é do jogador ${isWhiteTurn ? 'Branco' : 'Preto'}.`);
-
-                        const currentPlayerKingColor = isWhiteTurn ? 'white' : 'black';
-                        const isCurrentKingInCheck = isKingInCheck(currentPlayerKingColor);
-                        const hasLegalMoves = hasAnyLegalMoves(currentPlayerKingColor);
-
-                        if (isCurrentKingInCheck) {
-                            if (!hasLegalMoves) {
-                                // XEQUE-MATE!
-                                console.log(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu.`);
-                                alert(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu. O jogador ${isWhiteTurn ? 'Preto' : 'Branco'} venceu!`);
-                                isGameOver = true; // Define o estado do jogo como terminado
-                            } else {
-                                // Rei está em xeque, mas ainda tem movimentos legais
-                                console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
-                            }
-                        } else { // Rei NÃO está em xeque
-                            if (!hasLegalMoves) {
-                                // AFOGAMENTO (STALEMATE)!
-                                console.log(`AFOGAMENTO! O jogo terminou em empate.`);
-                                alert(`AFOGAMENTO! O jogo terminou em empate.`);
-                                isGameOver = true; // Define o estado do jogo como terminado
-                            } else {
-                                // Jogo continua normalmente
-                                console.log(`Rei ${currentPlayerKingColor} não está em xeque.`);
-                            }
-                        }
+                    rookToElement.classList.remove('white-piece', 'black-piece');
+                    if (isWhitePiece(rookPiece)) {
+                        rookToElement.classList.add('white-piece');
+                    } else if (isBlackPiece(rookPiece)) {
+                        rookToElement.classList.add('black-piece');
                     }
 
                 } else {
-                    console.log(`Movimento INVÁLIDO para ${selectedSquare.piece} de ${startRow},${startCol} para ${endRow},${endCol}. (Pode ser porque deixaria seu rei em xeque ou a casa não é um movimento válido)`);
-                    selectedSquare.element.classList.remove('selected');
-                    clearHighlights();
-                    selectedSquare = null;
+                    boardState[endRow][endCol] = pieceToMove;
+                    boardState[startRow][startCol] = '';
+
+                    selectedSquare.element.textContent = '';
+                    squareElement.textContent = pieceToMove;
+
+                    squareElement.classList.remove('white-piece', 'black-piece'); 
+                    if (isWhitePiece(pieceToMove)) {
+                        squareElement.classList.add('white-piece');
+                    } else if (isBlackPiece(pieceToMove)) {
+                            squareElement.classList.add('black-piece');
+                    }
                 }
+                selectedSquare.element.classList.remove('selected'); 
+                
+                if (pieceToMove === '♔') {
+                    hasWhiteKingMoved = true;
+                } else if (pieceToMove === '♚') {
+                    hasBlackKingMoved = true;
+                } 
+                else if (pieceToMove === '♖' && startRow === 7 && startCol === 7) {
+                    hasWhiteRookKingSideMoved = true;
+                } else if (pieceToMove === '♖' && startRow === 7 && startCol === 0) {
+                    hasWhiteRookQueenSideMoved = true;
+                } else if (pieceToMove === '♜' && startRow === 0 && startCol === 7) {
+                    hasBlackRookKingSideMoved = true;
+                } else if (pieceToMove === '♜' && startRow === 0 && startCol === 0) {
+                    hasBlackRookQueenSideMoved = true;
+                }
+
+                clearHighlights();
+                selectedSquare = null;
+
+                if ((pieceToMove === '♙' && endRow === 0) || (pieceToMove === '♟' && endRow === 7)) {
+                    pawnToPromote = { r: endRow, c: endCol, piece: pieceToMove };
+                    document.getElementById('promotion-overlay').classList.remove('hidden');
+                    pauseTimer(); // PAUSA O RELÓGIO DURANTE A PROMOÇÃO
+                    console.log("Peão pronto para promoção!");
+                } else {
+                    // TROCA O TURNO E REINICIA O RELÓGIO
+                    isWhiteTurn = !isWhiteTurn;
+                    updateTimerDisplay(); // Atualiza o indicador de turno e destaca o timer
+                    startTimer(); // Reinicia o timer para o novo jogador
+
+                    console.log(`Turno agora é do jogador ${isWhiteTurn ? 'Branco' : 'Preto'}.`);
+
+                    const currentPlayerKingColor = isWhiteTurn ? 'white' : 'black';
+                    const isCurrentKingInCheck = isKingInCheck(currentPlayerKingColor);
+                    const hasLegalMoves = hasAnyLegalMoves(currentPlayerKingColor);
+
+                    if (isCurrentKingInCheck) {
+                        if (!hasLegalMoves) {
+                            console.log(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu.`);
+                            alert(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu. O jogador ${isWhiteTurn ? 'Preto' : 'Branco'} venceu!`);
+                            isGameOver = true;
+                            pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
+                        } else {
+                            console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
+                        }
+                    } else {
+                        if (!hasLegalMoves) {
+                            console.log(`AFOGAMENTO! O jogo terminou em empate.`);
+                            alert(`AFOGAMENTO! O jogo terminou em empate.`);
+                            isGameOver = true;
+                            pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
+                        } else {
+                            console.log(`Rei ${currentPlayerKingColor} não está em xeque.`);
+                        }
+                    }
+                }
+
+            } else {
+                console.log(`Movimento INVÁLIDO para ${selectedSquare.piece} de ${startRow},${startCol} para ${endRow},${endCol}. (Pode ser porque deixaria seu rei em xeque ou a casa não é um movimento válido)`);
+                selectedSquare.element.classList.remove('selected');
+                clearHighlights();
+                selectedSquare = null;
             }
         }
     }
@@ -721,13 +713,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     promotionButtons.forEach(button => {
         button.addEventListener('click', (event) => {
-            if (!pawnToPromote) return; // Nenhuma promoção pendente
+            if (!pawnToPromote) return;
 
-            const chosenPieceType = event.target.dataset.piece; // Q, R, B, N
+            const chosenPieceType = event.target.dataset.piece;
             const promotedPieceColor = getPieceColor(pawnToPromote.piece);
 
             let newPieceSymbol;
-            // Mapeia o tipo de peça para o símbolo Unicode correto (branco ou preto)
             if (promotedPieceColor === 'white') {
                 switch (chosenPieceType) {
                     case 'Q': newPieceSymbol = '♕'; break;
@@ -735,7 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'B': newPieceSymbol = '♗'; break;
                     case 'N': newPieceSymbol = '♘'; break;
                 }
-            } else { // Black piece
+            } else {
                 switch (chosenPieceType) {
                     case 'Q': newPieceSymbol = '♛'; break;
                     case 'R': newPieceSymbol = '♜'; break;
@@ -744,13 +735,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Atualiza o boardState (lógica do tabuleiro)
             boardState[pawnToPromote.r][pawnToPromote.c] = newPieceSymbol;
 
-            // Atualiza o visual do tabuleiro
             const promotedSquareElement = document.getElementById(`sq-${pawnToPromote.r}-${pawnToPromote.c}`);
             promotedSquareElement.textContent = newPieceSymbol;
-            // Garante que a cor da nova peça esteja correta
             promotedSquareElement.classList.remove('white-piece', 'black-piece');
             if (promotedPieceColor === 'white') {
                 promotedSquareElement.classList.add('white-piece');
@@ -758,11 +746,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 promotedSquareElement.classList.add('black-piece');
             }
 
-            promotionOverlay.classList.add('hidden'); // Esconde o overlay
-            pawnToPromote = null; // Limpa o peão pendente
+            promotionOverlay.classList.add('hidden');
+            pawnToPromote = null;
 
-            // Agora sim, troca o turno APÓS a promoção ser concluída
+            // Continua o relógio APÓS a promoção ser concluída
             isWhiteTurn = !isWhiteTurn;
+            updateTimerDisplay(); // Atualiza o indicador de turno e destaca o timer
+            startTimer(); // Reinicia o timer para o novo jogador
+
             console.log(`Promoção concluída. Turno agora é do jogador ${isWhiteTurn ? 'Branco' : 'Preto'}.`);
 
             const currentPlayerKingColor = isWhiteTurn ? 'white' : 'black';
@@ -771,19 +762,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isCurrentKingInCheck) {
                 if (!hasLegalMoves) {
-                    // XEQUE-MATE!
                     console.log(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu.`);
                     alert(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu. O jogador ${isWhiteTurn ? 'Preto' : 'Branco'} venceu!`);
                     isGameOver = true;
+                    pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
                 } else {
                     console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
                 }
             } else {
                 if (!hasLegalMoves) {
-                    // AFOGAMENTO (STALEMATE)!
                     console.log(`AFOGAMENTO! O jogo terminou em empate.`);
                     alert(`AFOGAMENTO! O jogo terminou em empate.`);
                     isGameOver = true;
+                    pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
                 } else {
                     console.log(`Rei ${currentPlayerKingColor} não está em xeque.`);
                 }
@@ -791,7 +782,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Event listener para o botão de Novo Jogo
     newGameButton.addEventListener('click', resetGame);
 
 }); // Fechamento final do DOMContentLoaded

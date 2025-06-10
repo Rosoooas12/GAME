@@ -34,6 +34,39 @@ h1 {
     background-color: #45a049; /* Verde um pouco mais escuro no hover */
 }
 
+/* Contêiner para informações do jogo (relógios e turno) */
+.game-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 480px; /* Mesma largura do tabuleiro (8 * 60px) */
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #555;
+}
+
+.timer {
+    background-color: #eee;
+    padding: 8px 15px;
+    border-radius: 5px;
+    min-width: 100px; /* Garante que o texto não "pule" */
+    text-align: center;
+}
+
+#turn-indicator {
+    padding: 8px 15px;
+    background-color: #cceeff; /* Cor suave para o indicador de turno */
+    border-radius: 5px;
+}
+
+/* Estilos para o timer ativo (indicando o turno) */
+.timer.active-timer {
+    background-color: #d4edda; /* Um verde claro */
+    border: 2px solid #28a745; /* Uma borda verde mais escura */
+    color: #218838; /* Cor do texto mais escura */
+}
+
 
 /* Estilos para o contêiner do tabuleiro de xadrez */
 #chessboard {
