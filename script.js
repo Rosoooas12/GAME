@@ -6,6 +6,99 @@ document.addEventListener('DOMContentLoaded', () => {
     const turnIndicator = document.getElementById('turn-indicator');
     let selectedSquare = null;
 
+    // --- VARIÁVEL PARA O AUDIOCTX E FUNÇÕES DE SOM (WEB AUDIO API) ---
+    let audioContext;
+
+    function getAudioContext() {
+        // Tenta criar o AudioContext se ainda não existe
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        // Retoma o contexto de áudio se ele estiver suspenso
+        // (necessário devido às políticas de autoplay dos navegadores)
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().then(() => {
+                console.log('AudioContext resumed!');
+            }).catch(e => {
+                console.error('Failed to resume AudioContext:', e);
+            });
+        }
+        return audioContext;
+    }
+
+    // Função genérica para tocar sons com oscilador
+    function playSound(frequency, duration, type = 'sine', volume = 0.1, delay = 0) {
+        const context = getAudioContext();
+        if (!context) {
+            console.warn("AudioContext not ready, cannot play sound.");
+            return; // Não tenta tocar se o contexto não está pronto
+        }
+
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+
+        oscillator.type = type; // Tipos: 'sine', 'square', 'sawtooth', 'triangle'
+        oscillator.frequency.setValueAtTime(frequency, context.currentTime + delay);
+
+        gainNode.gain.setValueAtTime(volume, context.currentTime + delay);
+        // Pequeno fade-out para evitar cliques no final do som
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + delay + duration);
+
+        oscillator.start(context.currentTime + delay);
+        oscillator.stop(context.currentTime + delay + duration);
+    }
+
+    // Funções específicas para cada som do jogo
+    function playMoveSound() {
+        playSound(440, 0.1, 'sine', 0.1); // Ex: Tom de Lá, curto
+    }
+
+    function playCaptureSound() {
+        playSound(330, 0.15, 'triangle', 0.2); // Ex: Tom de Mi, um pouco mais longo e agudo
+    }
+
+    function playCheckmateSound() {
+        const context = getAudioContext();
+        if (!context) return;
+
+        const mainOscillator = context.createOscillator();
+        const gainNode = context.createGain();
+
+        mainOscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+
+        mainOscillator.type = 'sawtooth'; // Onda dente de serra para um som mais "agressivo"
+        mainOscillator.frequency.setValueAtTime(220, context.currentTime); // Começa com um tom grave (A3)
+        mainOscillator.frequency.linearRampToValueAtTime(330, context.currentTime + 0.5); // Sobe para um tom mais agudo (E4)
+        mainOscillator.frequency.linearRampToValueAtTime(110, context.currentTime + 1.0); // Desce para um tom grave (A2)
+
+        gainNode.gain.setValueAtTime(0.3, context.currentTime); // Volume inicial
+        gainNode.gain.linearRampToValueAtTime(0.0001, context.currentTime + 1.2); // Fade-out
+
+        mainOscillator.start(context.currentTime);
+        mainOscillator.stop(context.currentTime + 1.2);
+    }
+
+    function playPromoteSound() {
+        playSound(660, 0.1, 'square', 0.15); // Ex: Tom mais agudo (E5), onda quadrada
+    }
+
+    function playCastleSound() {
+        // Dois bipes rápidos um após o outro
+        playSound(550, 0.08, 'sine', 0.1); // Primeiro som (C#5)
+        playSound(660, 0.08, 'sine', 0.1, 0.1); // Segundo som (E5) com um pequeno atraso
+    }
+    // --- FIM DAS FUNÇÕES DE ÁUDIO ---
+
+    // Adiciona event listeners para tentar "destravar" o AudioContext na primeira interação do usuário
+    // Isso é crucial para que os sons funcionem em navegadores modernos
+    document.body.addEventListener('click', getAudioContext, { once: true });
+    newGameButton.addEventListener('click', getAudioContext, { once: true });
+
+
     // Representação do tabuleiro de xadrez no estado inicial com símbolos Unicode
     const initialBoard = [
         ['♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'], // Peças pretas
@@ -91,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const c of captureCols) {
             const targetRow = row + direction;
             if (isValidPosition(targetRow, c) && isOpponent(boardState[row][col], boardState[targetRow][c])) {
-                moves.push({ r: targetRow, c: c });
+                moves.push({ r: targetRow, c: c, isCapture: true }); // Adiciona isCapture para indicar captura
             }
         }
         return moves;
@@ -117,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     moves.push({ r: newRow, c: newCol });
                 } else {
                     if (isOpponent(piece, targetPiece)) {
-                        moves.push({ r: newRow, c: newCol });
+                        moves.push({ r: newRow, c: newCol, isCapture: true }); // Adiciona isCapture
                     }
                     break;
                 }
@@ -146,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     moves.push({ r: newRow, c: newCol });
                 } else {
                     if (isOpponent(piece, targetPiece)) {
-                        moves.push({ r: newRow, c: newCol });
+                        moves.push({ r: newRow, c: newCol, isCapture: true }); // Adiciona isCapture
                     }
                     break;
                 }
@@ -175,8 +268,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isValidPosition(newRow, newCol)) {
                 const targetPiece = boardState[newRow][newCol];
-                if (targetPiece === '' || isOpponent(piece, targetPiece)) {
+                if (targetPiece === '') {
                     moves.push({ r: newRow, c: newCol });
+                } else if (isOpponent(piece, targetPiece)) {
+                    moves.push({ r: newRow, c: newCol, isCapture: true }); // Adiciona isCapture
                 }
             }
         }
@@ -198,8 +293,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isValidPosition(newRow, newCol)) {
                 const targetPiece = boardState[newRow][newCol];
-                if (targetPiece === '' || isOpponent(piece, targetPiece)) {
+                if (targetPiece === '') {
                     moves.push({ r: newRow, c: newCol });
+                } else if (isOpponent(piece, targetPiece)) {
+                    moves.push({ r: newRow, c: newCol, isCapture: true }); // Adiciona isCapture
                 }
             }
         }
@@ -210,14 +307,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hasWhiteKingMoved && !hasWhiteRookKingSideMoved) {
                 if (boardState[7][5] === '' && boardState[7][6] === '') {
                     if (!isKingInCheck('white')) {
+                        // Simula movimento para f1 e g1 para verificar xeque
                         boardState[7][5] = '♔'; boardState[7][4] = '';
                         const isPassingThroughCheck = isKingInCheck('white');
-                        boardState[7][4] = '♔'; boardState[7][5] = '';
+                        boardState[7][4] = '♔'; boardState[7][5] = ''; // Desfaz simulação
 
                         if (!isPassingThroughCheck) {
                             boardState[7][6] = '♔'; boardState[7][4] = '';
                             const isEndingInCheck = isKingInCheck('white');
-                            boardState[7][4] = '♔'; boardState[7][6] = '';
+                            boardState[7][4] = '♔'; boardState[7][6] = ''; // Desfaz simulação
 
                             if (!isEndingInCheck) {
                                 moves.push({ r: 7, c: 6, isCastling: true, rookFrom: {r: 7, c: 7}, rookTo: {r: 7, c: 5} });
@@ -231,14 +329,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!hasWhiteKingMoved && !hasWhiteRookQueenSideMoved) {
                 if (boardState[7][1] === '' && boardState[7][2] === '' && boardState[7][3] === '') {
                     if (!isKingInCheck('white')) {
+                        // Simula movimento para d1 e c1 para verificar xeque
                         boardState[7][3] = '♔'; boardState[7][4] = '';
                         const isPassingThroughCheck = isKingInCheck('white');
-                        boardState[7][4] = '♔'; boardState[7][3] = '';
+                        boardState[7][4] = '♔'; boardState[7][3] = ''; // Desfaz simulação
 
                         if (!isPassingThroughCheck) {
                             boardState[7][2] = '♔'; boardState[7][4] = '';
                             const isEndingInCheck = isKingInCheck('white');
-                            boardState[7][4] = '♔'; boardState[7][2] = '';
+                            boardState[7][4] = '♔'; boardState[7][2] = ''; // Desfaz simulação
 
                             if (!isEndingInCheck) {
                                 moves.push({ r: 7, c: 2, isCastling: true, rookFrom: {r: 7, c: 0}, rookTo: {r: 7, c: 3} });
@@ -325,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             case '♗': case '♝': return getBishopMoves(r, c, col);
                             case '♕': case '♛': return getQueenMoves(r, c, col);
                             case '♘': case '♞': return getKnightMoves(r, c, col);
-                            case '♔': case '♚': return getKingMoves(r, c, col).filter(move => !move.isCastling);
+                            case '♔': case '♚': return getKingMoves(r, c, col).filter(move => !move.isCastling); // Reis não podem rocar para escapar do xeque
                             default: return [];
                         }
                     };
@@ -359,23 +458,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const filteredMoves = moves.filter(move => {
+            // Se for um movimento de roque, a validação de xeque já foi feita em getKingMoves
             if (move.isCastling) {
                 return true;
             }
 
             const originalPiece = boardState[row][col];
-            const targetPiece = boardState[move.r][move.c];
+            const targetPiece = boardState[move.r][move.c]; // Peça na casa de destino, pode ser vazia ou inimiga
             
+            // Simula o movimento
             boardState[move.r][move.c] = originalPiece;
             boardState[row][col] = '';
 
             const kingColor = getPieceColor(originalPiece);
             const isInCheckAfterMove = isKingInCheck(kingColor);
 
+            // Desfaz a simulação do movimento
             boardState[row][col] = originalPiece;
             boardState[move.r][move.c] = targetPiece;
 
-            return !isInCheckAfterMove;
+            return !isInCheckAfterMove; // O movimento é válido se o rei não estiver em xeque após ele
         });
 
         return filteredMoves;
@@ -482,10 +584,15 @@ document.addEventListener('DOMContentLoaded', () => {
         isGameOver = true;
         alert(`FIM DE JOGO! O tempo do jogador ${playerColor} acabou. O jogador ${playerColor === 'Brancas' ? 'Pretas' : 'Brancas'} venceu por tempo!`);
         console.log(`FIM DE JOGO! O tempo do jogador ${playerColor} acabou.`);
+        playCheckmateSound(); // Toca som de xeque-mate/fim de jogo
     }
 
     // --- Função para Renderizar o Tabuleiro (útil para reiniciar o jogo) ---
     function renderBoard() {
+        if (!chessboard) {
+            console.error("Erro: O elemento #chessboard não foi encontrado no DOM.");
+            return;
+        }
         chessboard.innerHTML = ''; // Limpa o tabuleiro HTML existente
 
         for (let i = 0; i < 64; i++) {
@@ -596,6 +703,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`Movimento VÁLIDO de ${selectedSquare.piece} de ${startRow},${startCol} para ${endRow},${endCol}`);
 
                 const pieceToMove = selectedSquare.piece;
+                // Verificar se a casa de destino tinha uma peça (para saber se é captura)
+                const targetSquareHadPiece = boardState[endRow][endCol] !== ''; 
 
                 if (moveAttempt.isCastling) {
                     console.log("Realizando Roque!");
@@ -613,6 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const rookToElement = document.getElementById(`sq-${moveAttempt.rookTo.r}-${moveAttempt.rookTo.c}`);
                     rookToElement.textContent = rookPiece;
 
+                    // Remover e adicionar classes de cor (importante após mover peças)
                     squareElement.classList.remove('white-piece', 'black-piece');
                     if (isWhitePiece(pieceToMove)) {
                         squareElement.classList.add('white-piece');
@@ -625,6 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (isBlackPiece(rookPiece)) {
                         rookToElement.classList.add('black-piece');
                     }
+                    playCastleSound(); // Toca som de roque
 
                 } else {
                     boardState[endRow][endCol] = pieceToMove;
@@ -633,15 +744,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectedSquare.element.textContent = '';
                     squareElement.textContent = pieceToMove;
 
+                    // Remover e adicionar classes de cor
                     squareElement.classList.remove('white-piece', 'black-piece'); 
                     if (isWhitePiece(pieceToMove)) {
                         squareElement.classList.add('white-piece');
                     } else if (isBlackPiece(pieceToMove)) {
                             squareElement.classList.add('black-piece');
                     }
+
+                    // Tocar som de captura se a casa de destino tinha uma peça, ou som de movimento normal
+                    if (targetSquareHadPiece) {
+                        playCaptureSound(); // Toca som de captura
+                    } else {
+                        playMoveSound(); // Toca som de movimento normal
+                    }
                 }
                 selectedSquare.element.classList.remove('selected'); 
                 
+                // Atualiza o estado de movimento de reis e torres para o roque
                 if (pieceToMove === '♔') {
                     hasWhiteKingMoved = true;
                 } else if (pieceToMove === '♚') {
@@ -660,19 +780,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearHighlights();
                 selectedSquare = null;
 
+                // Lógica de promoção de peão
                 if ((pieceToMove === '♙' && endRow === 0) || (pieceToMove === '♟' && endRow === 7)) {
                     pawnToPromote = { r: endRow, c: endCol, piece: pieceToMove };
                     document.getElementById('promotion-overlay').classList.remove('hidden');
                     pauseTimer(); // PAUSA O RELÓGIO DURANTE A PROMOÇÃO
+                    playPromoteSound(); // Toca som de promoção
                     console.log("Peão pronto para promoção!");
                 } else {
-                    // TROCA O TURNO E REINICIA O RELÓGIO
+                    // Troca o turno e reinicia o relógio
                     isWhiteTurn = !isWhiteTurn;
                     updateTimerDisplay(); // Atualiza o indicador de turno e destaca o timer
                     startTimer(); // Reinicia o timer para o novo jogador
 
                     console.log(`Turno agora é do jogador ${isWhiteTurn ? 'Branco' : 'Preto'}.`);
 
+                    // Verifica xeque, xeque-mate e afogamento após o movimento
                     const currentPlayerKingColor = isWhiteTurn ? 'white' : 'black';
                     const isCurrentKingInCheck = isKingInCheck(currentPlayerKingColor);
                     const hasLegalMoves = hasAnyLegalMoves(currentPlayerKingColor);
@@ -683,8 +806,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             alert(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu. O jogador ${isWhiteTurn ? 'Preto' : 'Branco'} venceu!`);
                             isGameOver = true;
                             pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
+                            playCheckmateSound(); // Toca som de xeque-mate/fim de jogo
                         } else {
                             console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
+                            // Opcional: Você pode criar um playCheckSound() se quiser um som diferente para xeque
                         }
                     } else {
                         if (!hasLegalMoves) {
@@ -692,6 +817,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             alert(`AFOGAMENTO! O jogo terminou em empate.`);
                             isGameOver = true;
                             pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
+                            // Opcional: Tocar um som de afogamento diferente ou o de xeque-mate
                         } else {
                             console.log(`Rei ${currentPlayerKingColor} não está em xeque.`);
                         }
@@ -766,6 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert(`XEQUE-MATE! O jogador ${currentPlayerKingColor} perdeu. O jogador ${isWhiteTurn ? 'Preto' : 'Branco'} venceu!`);
                     isGameOver = true;
                     pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
+                    playCheckmateSound(); // Toca som de xeque-mate/fim de jogo
                 } else {
                     console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
                 }
@@ -775,6 +902,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert(`AFOGAMENTO! O jogo terminou em empate.`);
                     isGameOver = true;
                     pauseTimer(); // PAUSA O RELÓGIO AO FINAL DO JOGO
+                    // Opcional: Tocar som de afogamento
                 } else {
                     console.log(`Rei ${currentPlayerKingColor} não está em xeque.`);
                 }
