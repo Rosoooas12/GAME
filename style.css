@@ -25,38 +25,31 @@ h1 {
 .square {
     width: 60px;
     height: 60px;
+    box-sizing: border-box; /* Garante que padding e borda não aumentem o tamanho total */
 }
 
-/* Regras para colorir as casas alternadamente */
-.square:nth-child(even) { /* Casas pares (2, 4, 6, etc. em cada linha) */
+/* Cores das casas baseadas nas classes adicionadas pelo JavaScript */
+.square.light {
     background-color: #f0d9b5; /* Cor clara (bege) */
 }
 
-.square:nth-child(odd) { /* Casas ímpares (1, 3, 5, etc. em cada linha) */
+.square.dark {
     background-color: #b58863; /* Cor escura (marrom) */
+}/* Estilo para as peças de xadrez (símbolos Unicode) */
+.square {
+    display: flex;
+    align-items: center; /* Centraliza verticalmente o conteúdo */
+    justify-content: center; /* Centraliza horizontalmente o conteúdo */
+    font-size: 40px; /* Tamanho da fonte para as peças */
+    font-weight: bold; /* Deixa o símbolo mais "gordinho" */
 }
 
-/* Ajuste para alternar corretamente entre as linhas */
-#chessboard .square:nth-child(16n+1),
-#chessboard .square:nth-child(16n+3),
-#chessboard .square:nth-child(16n+5),
-#chessboard .square:nth-child(16n+7),
-#chessboard .square:nth-child(16n+10),
-#chessboard .square:nth-child(16n+12),
-#chessboard .square:nth-child(16n+14),
-#chessboard .square:nth-child(16n+16) {
-    /* Para inverter as cores nas linhas pares */
-    background-color: #b58863; /* Cor escura */
+.white-piece {
+    color: #fff; /* Cor para as peças brancas (um branco puro) */
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Sombra para destacá-las */
 }
 
-#chessboard .square:nth-child(16n+2),
-#chessboard .square:nth-child(16n+4),
-#chessboard .square:nth-child(16n+6),
-#chessboard .square:nth-child(16n+8),
-#chessboard .square:nth-child(16n+9),
-#chessboard .square:nth-child(16n+11),
-#chessboard .square:nth-child(16n+13),
-#chessboard .square:nth-child(16n+15) {
-    /* Para inverter as cores nas linhas ímpares */
-    background-color: #f0d9b5; /* Cor clara */
+.black-piece {
+    color: #333; /* Cor para as peças pretas (um cinza bem escuro) */
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.5); /* Sombra para destacá-las */
 }
