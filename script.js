@@ -44,8 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return r >= 0 && r < 8 && c >= 0 && c < 8;
     }
 
-    // --- Funções de Movimento para Cada Tipo de Peça ---
-
+    // --- Funções de Movimento para Cada Tipo de Peça (Movimentos Brutos) ---
+    // Estas funções calculam os movimentos sem considerar se o rei estaria em xeque
     function getPawnMoves(row, col, color) {
         const moves = [];
         const direction = (color === 'white') ? -1 : 1;
@@ -86,16 +86,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newRow = row + i * dir.dr;
                 const newCol = col + i * dir.dc;
 
-                if (!isValidPosition(newRow, newCol)) break; // Sai se fora do tabuleiro
+                if (!isValidPosition(newRow, newCol)) break;
 
                 const targetPiece = boardState[newRow][newCol];
                 if (targetPiece === '') {
                     moves.push({ r: newRow, c: newCol });
                 } else {
                     if (isOpponent(piece, targetPiece)) {
-                        moves.push({ r: newRow, c: newCol }); // Captura a peça inimiga
+                        moves.push({ r: newRow, c: newCol });
                     }
-                    break; // Para de procurar nesta direção após encontrar uma peça
+                    break;
                 }
             }
         }
@@ -115,16 +115,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newRow = row + i * dir.dr;
                 const newCol = col + i * dir.dc;
 
-                if (!isValidPosition(newRow, newCol)) break; // Sai se fora do tabuleiro
+                if (!isValidPosition(newRow, newCol)) break;
 
                 const targetPiece = boardState[newRow][newCol];
                 if (targetPiece === '') {
                     moves.push({ r: newRow, c: newCol });
                 } else {
                     if (isOpponent(piece, targetPiece)) {
-                        moves.push({ r: newRow, c: newCol }); // Captura a peça inimiga
+                        moves.push({ r: newRow, c: newCol });
                     }
-                    break; // Para de procurar nesta direção após encontrar uma peça
+                    break;
                 }
             }
         }
@@ -132,13 +132,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getQueenMoves(row, col, color) {
-        // A Rainha combina os movimentos da Torre e do Bispo
         return [...getRookMoves(row, col, color), ...getBishopMoves(row, col, color)];
     }
 
     function getKnightMoves(row, col, color) {
         const moves = [];
-        // Todos os 8 movimentos em 'L' de um cavalo
         const knightLMoves = [
             { dr: -2, dc: -1 }, { dr: -2, dc: 1 },
             { dr: -1, dc: -2 }, { dr: -1, dc: 2 },
@@ -153,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isValidPosition(newRow, newCol)) {
                 const targetPiece = boardState[newRow][newCol];
-                // Pode mover para casa vazia ou capturar peça inimiga
                 if (targetPiece === '' || isOpponent(piece, targetPiece)) {
                     moves.push({ r: newRow, c: newCol });
                 }
@@ -164,7 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getKingMoves(row, col, color) {
         const moves = [];
-        // Todas as 8 direções adjacentes
         const directions = [
             { dr: -1, dc: -1 }, { dr: -1, dc: 0 }, { dr: -1, dc: 1 },
             { dr: 0, dc: -1 },                       { dr: 0, dc: 1 },
@@ -178,7 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isValidPosition(newRow, newCol)) {
                 const targetPiece = boardState[newRow][newCol];
-                // Pode mover para casa vazia ou capturar peça inimiga
                 if (targetPiece === '' || isOpponent(piece, targetPiece)) {
                     moves.push({ r: newRow, c: newCol });
                 }
@@ -187,12 +182,71 @@ document.addEventListener('DOMContentLoaded', () => {
         return moves;
     }
 
+    // --- Função para verificar se um Rei está em xeque ---
+    function isKingInCheck(kingColor) {
+        let kingRow, kingCol;
+        const opponentColor = (kingColor === 'white') ? 'black' : 'white';
+        const kingPiece = (kingColor === 'white') ? '♔' : '♚';
+
+        // 1. Encontrar a posição do Rei da cor especificada
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (boardState[r][c] === kingPiece) {
+                    kingRow = r;
+                    kingCol = c;
+                    break;
+                }
+            }
+            if (kingRow !== undefined) break;
+        }
+
+        if (kingRow === undefined) return false;
+
+        // 2. Iterar sobre todas as casas do tabuleiro
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = boardState[r][c];
+                // 3. Se a peça é do oponente
+                if (piece !== '' && getPieceColor(piece) === opponentColor) {
+                    // 4. Obter todos os movimentos "brutos" que esta peça do oponente PODE FAZER.
+                    // Usamos uma função auxiliar que apenas calcula os movimentos da peça,
+                    // sem aplicar o filtro de xeque recursivo que getValidMovesForPiece usará.
+                    const getRawMovesForPiece = (r, c) => {
+                        const p = boardState[r][c];
+                        const col = getPieceColor(p); // Cor da peça atacante
+                        switch (p) {
+                            case '♙': case '♟': return getPawnMoves(r, c, col);
+                            case '♖': case '♜': return getRookMoves(r, c, col);
+                            case '♗': case '♝': return getBishopMoves(r, c, col);
+                            case '♕': case '♛': return getQueenMoves(r, c, col);
+                            case '♘': case '♞': return getKnightMoves(r, c, col);
+                            case '♔': case '♚': return getKingMoves(r, c, col);
+                            default: return [];
+                        }
+                    };
+
+                    const potentialAttacks = getRawMovesForPiece(r, c);
+
+                    // 5. Verificar se algum desses movimentos atinge a posição do Rei
+                    for (const attackMove of potentialAttacks) {
+                        if (attackMove.r === kingRow && attackMove.c === kingCol) {
+                            return true; // Rei está em xeque
+                        }
+                    }
+                }
+            }
+        }
+        return false; // Rei não está em xeque
+    }
+
     // --- Função Central para Obter Todos os Movimentos Válidos de uma Peça ---
+    // Agora, filtra os movimentos que colocariam o próprio rei em xeque
     function getValidMovesForPiece(row, col) {
         const piece = boardState[row][col];
         const color = getPieceColor(piece);
         let moves = [];
 
+        // Primeiro, obtenha os movimentos "brutos" da peça
         switch (piece) {
             case '♙':
             case '♟':
@@ -221,71 +275,30 @@ document.addEventListener('DOMContentLoaded', () => {
             default:
                 moves = [];
         }
-        // TODO: Filtrar movimentos que colocariam o próprio rei em xeque
-        return moves;
-    }
 
-    // --- Função para verificar se um Rei está em xeque ---
-    function isKingInCheck(kingColor) {
-        let kingRow, kingCol;
-        const opponentColor = (kingColor === 'white') ? 'black' : 'white';
-        const kingPiece = (kingColor === 'white') ? '♔' : '♚';
+        // --- FILTRAR MOVIMENTOS QUE COLOCARIAM O PRÓPRIO REI EM XEQUE ---
+        const filteredMoves = moves.filter(move => {
+            // 1. Simular o movimento
+            const originalPiece = boardState[row][col];
+            const targetPiece = boardState[move.r][move.c]; // Peça que está na casa de destino
+            
+            // Fazer o movimento no estado do tabuleiro (temporariamente)
+            boardState[move.r][move.c] = originalPiece;
+            boardState[row][col] = '';
 
-        // 1. Encontrar a posição do Rei da cor especificada
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (boardState[r][c] === kingPiece) {
-                    kingRow = r;
-                    kingCol = c;
-                    break;
-                }
-            }
-            if (kingRow !== undefined) break;
-        }
+            // 2. Verificar se o Rei do jogador atual está em xeque após o movimento simulado
+            const kingColor = getPieceColor(originalPiece);
+            const isInCheckAfterMove = isKingInCheck(kingColor);
 
-        if (kingRow === undefined) return false; // Rei não encontrado (situação inválida no jogo)
+            // 3. Desfazer o movimento simulado
+            boardState[row][col] = originalPiece;
+            boardState[move.r][move.c] = targetPiece; // Restaurar a peça que estava na casa de destino
 
-        // 2. Iterar sobre todas as casas do tabuleiro
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                const piece = boardState[r][c];
-                // 3. Se a peça é do oponente
-                if (piece !== '' && getPieceColor(piece) === opponentColor) {
-                    // 4. Obter todos os movimentos que esta peça do oponente PODE FAZER.
-                    // IMPORTANT: Criamos uma cópia temporária do boardState para que os cálculos
-                    // de movimento das peças inimigas não sejam afetados por estados intermediários
-                    // (por exemplo, se um movimento válido depende de o rei não estar em xeque).
-                    // Para o propósito de *verificar* xeque, queremos que a peça *pode* atacar o rei,
-                    // mesmo que seu próprio rei esteja em xeque ou o movimento seja ilegal por outras razões.
-                    
-                    // Cria uma função auxiliar temporária para obter movimentos brutos,
-                    // ignorando a filtragem de xeque que será adicionada posteriormente
-                    const getRawMovesForPiece = (r, c) => {
-                        const p = boardState[r][c];
-                        const col = getPieceColor(p);
-                        switch (p) {
-                            case '♙': case '♟': return getPawnMoves(r, c, col);
-                            case '♖': case '♜': return getRookMoves(r, c, col);
-                            case '♗': case '♝': return getBishopMoves(r, c, col);
-                            case '♕': case '♛': return getQueenMoves(r, c, col);
-                            case '♘': case '♞': return getKnightMoves(r, c, col);
-                            case '♔': case '♚': return getKingMoves(r, c, col);
-                            default: return [];
-                        }
-                    };
+            // 4. Se o rei não estiver em xeque após o movimento simulado, o movimento é válido
+            return !isInCheckAfterMove;
+        });
 
-                    const potentialAttacks = getRawMovesForPiece(r, c);
-
-                    // 5. Verificar se algum desses movimentos atinge a posição do Rei
-                    for (const attackMove of potentialAttacks) {
-                        if (attackMove.r === kingRow && attackMove.c === kingCol) {
-                            return true; // Rei está em xeque
-                        }
-                    }
-                }
-            }
-        }
-        return false; // Rei não está em xeque
+        return filteredMoves;
     }
 
     // --- Funções para Destacar Casas ---
@@ -349,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectedSquare = { element: squareElement, row: row, col: col, piece: pieceInSquare };
                     squareElement.classList.add('selected');
                     
-                    const validMoves = getValidMovesForPiece(row, col);
+                    const validMoves = getValidMovesForPiece(row, col); // Já virá filtrado!
                     highlightValidMoves(validMoves);
                     console.log(`Peça selecionada: ${pieceInSquare} na casa ${row},${col}. Movimentos válidos:`, validMoves);
                 } else {
@@ -370,26 +383,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const endRow = row;
                 const endCol = col;
 
-                const possibleMoves = getValidMovesForPiece(startRow, startCol);
+                // Aqui, os 'possibleMoves' já estão filtrados para não causar xeque no próprio rei
+                const possibleMoves = getValidMovesForPiece(startRow, startCol); 
                 const isMoveAllowed = possibleMoves.some(move => move.r === endRow && move.c === endCol);
 
                 if (isMoveAllowed) {
                     console.log(`Movimento VÁLIDO de ${selectedSquare.piece} de ${startRow},${startCol} para ${endRow},${endCol}`);
 
                     // === Realiza o Movimento no Estado Lógico e Visual ===
-                    // Armazena a peça que estava na casa de destino (para possível desfaça)
                     const capturedPiece = boardState[endRow][endCol]; 
 
-                    // Move a peça logicamente
                     boardState[endRow][endCol] = selectedSquare.piece;
                     boardState[startRow][startCol] = '';
 
-                    // Atualiza o visual
                     selectedSquare.element.textContent = '';
-                    selectedSquare.element.classList.remove('selected', 'white-piece', 'black-piece'); // Remove classes da casa antiga
+                    selectedSquare.element.classList.remove('selected', 'white-piece', 'black-piece'); 
 
-                    squareElement.textContent = selectedSquare.piece; // Adiciona peça na nova casa
-                    squareElement.classList.remove('white-piece', 'black-piece'); // Limpa cores antigas
+                    squareElement.textContent = selectedSquare.piece; 
+                    squareElement.classList.remove('white-piece', 'black-piece'); 
                     if (isWhitePiece(selectedSquare.piece)) {
                         squareElement.classList.add('white-piece');
                     } else if (isBlackPiece(selectedSquare.piece)) {
@@ -397,7 +408,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     // === Fim da Realização do Movimento ===
                     
-                    // Limpa destaques e seleção
                     selectedSquare = null;
                     clearHighlights();
                     
@@ -405,19 +415,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     isWhiteTurn = !isWhiteTurn;
                     console.log(`Turno agora é do jogador ${isWhiteTurn ? 'Branco' : 'Preto'}.`);
 
-                    // --- Verificação de Xeque APÓS o Movimento e Troca de Turno ---
-                    // Verifica se o REI DO JOGADOR CUJO TURNO AGORA É está em xeque
+                    // --- Verificação de Xeque APÓS o Movimento e Troca de Turno (no rei do oponente) ---
                     const currentPlayerKingColor = isWhiteTurn ? 'white' : 'black';
                     if (isKingInCheck(currentPlayerKingColor)) {
                         console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
-                        // FUTURAMENTE: Aqui você adicionará lógica para:
-                        // 1. Mostrar um alerta visual de xeque
-                        // 2. Filtrar movimentos inválidos que deixam o próprio rei em xeque
-                        // 3. Verificar se é xeque-mate
+                        // FUTURAMENTE: Aqui você pode adicionar um indicador visual mais forte de xeque
+                        // e/ou verificar xeque-mate.
                     }
 
                 } else {
-                    console.log(`Movimento INVÁLIDO para ${selectedSquare.piece} de ${startRow},${startCol} para ${endRow},${endCol}`);
+                    console.log(`Movimento INVÁLIDO para ${selectedSquare.piece} de ${startRow},${startCol} para ${endRow},${endCol}. (Pode ser porque deixaria seu rei em xeque ou a casa não é um movimento válido)`
+                    );
                     selectedSquare.element.classList.remove('selected');
                     clearHighlights();
                     selectedSquare = null;
