@@ -17,6 +17,24 @@ h1 {
     color: #333; /* Cor do texto do título */
 }
 
+/* Estilos para o botão de Novo Jogo */
+#new-game-button {
+    padding: 10px 20px;
+    font-size: 1.1em;
+    background-color: #4CAF50; /* Verde */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 20px; /* Espaço abaixo do botão */
+    transition: background-color 0.3s ease;
+}
+
+#new-game-button:hover {
+    background-color: #45a049; /* Verde um pouco mais escuro no hover */
+}
+
+
 /* Estilos para o contêiner do tabuleiro de xadrez */
 #chessboard {
     display: grid; /* Usa CSS Grid para criar a grade 8x8 */

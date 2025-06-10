@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const chessboard = document.getElementById('chessboard');
+    const newGameButton = document.getElementById('new-game-button'); // Adicionado: Referência ao botão Novo Jogo
     let selectedSquare = null; // Guarda a casa clicada (peça selecionada)
 
     // Representação do tabuleiro de xadrez no estado inicial com símbolos Unicode
@@ -504,6 +505,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // Chamada inicial para renderizar o tabuleiro quando a página carrega
     renderBoard();
 
+    // --- Função de Reinício do Jogo ---
+    function resetGame() {
+        // Redefine o boardState para o tabuleiro inicial
+        boardState = initialBoard.map(row => [...row]); 
+
+        // Redefine todas as variáveis de estado para seus valores iniciais
+        isWhiteTurn = true;
+        selectedSquare = null;
+        hasWhiteKingMoved = false;
+        hasBlackKingMoved = false;
+        hasWhiteRookKingSideMoved = false;
+        hasWhiteRookQueenSideMoved = false;
+        hasBlackRookKingSideMoved = false;
+        hasBlackRookQueenSideMoved = false;
+        pawnToPromote = null;
+        isGameOver = false; // Importante: resetar o flag de fim de jogo
+
+        clearHighlights(); // Limpa quaisquer destaques antigos
+        document.getElementById('promotion-overlay').classList.add('hidden'); // Garante que o overlay de promoção esteja escondido
+
+        renderBoard(); // Redesenha o tabuleiro com as peças nas posições iniciais
+        console.log("Jogo Reiniciado!");
+    }
 
     // --- Função que lida com o clique em uma casa do tabuleiro ---
     function handleClick(squareElement, row, col) {
@@ -766,5 +790,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // Event listener para o botão de Novo Jogo
+    newGameButton.addEventListener('click', resetGame);
 
 }); // Fechamento final do DOMContentLoaded
