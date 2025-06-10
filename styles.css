@@ -53,22 +53,10 @@ section {
     color: #c2185b; /* Vinho para o texto */
 }
 
-/* As regras para .image-gallery e .music-section não afetarão o site agora,
-   mas podem ser mantidas ou removidas para "limpeza" se você quiser */
-.image-gallery h2, .music-section h2, .secret-section h2 {
+.secret-section h2 { /* Ajustado para afetar só a seção secreta agora que as outras foram removidas */
     color: #f06292; /* Rosa claro para títulos de seção */
     font-size: 2.5em;
     margin-bottom: 20px;
-}
-/* Removendo as regras específicas para imagens e áudio que não serão usadas */
-/* .image-container { ... } */
-/* .image-container img { ... } */
-/* audio { ... } */
-
-
-.secret-section {
-    background-color: #ffe0e6; /* Cor de fundo mais clara para a seção secreta */
-    border: 2px dashed #d147a3; /* Borda tracejada */
 }
 
 #revealButton {
@@ -137,7 +125,6 @@ footer {
     .message-section p {
         font-size: 1.3em;
     }
-    /* .image-container img { max-width: 200px; } */ /* Removido */
     #revealButton {
         font-size: 1.2em;
         padding: 12px 25px;
@@ -157,8 +144,6 @@ footer {
     section {
         padding: 20px;
     }
-    /* .image-container img { max-width: 150px; } */ /* Removido */
-    /* audio { width: 100%; } */ /* Removido */
     #revealButton {
         font-size: 1em;
         padding: 10px 20px;
