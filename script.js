@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- INSTÂNCIA DA BIBLIOTECA CHESS.JS ---
+    // A instância de Chess deve ser criada após a certeza de que a biblioteca foi carregada.
+    // Se você ainda vir 'Chess is not defined', o problema está no <script> do HTML ou no cache.
     const chessGame = new Chess();
 
     // --- CONFIGURAÇÃO DO BOT ---
@@ -217,11 +219,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Renderização do Tabuleiro (LÊ DO CHESS.JS) ---
     function renderBoard() {
+        // ESSENCIAL: Garante que o elemento 'chessboard' existe antes de tentar manipulá-lo.
         if (!chessboard) {
             console.error("Erro interno: #chessboard não encontrado na função renderBoard. Isso não deveria acontecer.");
             return; 
         }
-        chessboard.innerHTML = ''; 
+        chessboard.innerHTML = ''; // Limpa o tabuleiro antes de renderizar
 
         const currentBoard = chessGame.board(); 
 
@@ -229,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let c = 0; c < 8; c++) {
                 const square = document.createElement('div');
                 square.classList.add('square');
-                square.id = 'sq-' + r + '-' + c;
+                square.id = 'sq-' + r + '-' + c; // Atribui um ID único à casa
 
                 if ((r + c) % 2 === 0) {
                     square.classList.add('light');
@@ -237,9 +240,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     square.classList.add('dark');
                 }
 
-                const pieceData = currentBoard[r][c]; 
+                const pieceData = currentBoard[r][c]; // Obtém a peça do chess.js
 
                 if (pieceData) {
+                    // Mapeia o tipo de peça para o símbolo Unicode
                     const pieceSymbol = pieceSymbols[pieceData.type.toUpperCase()] || pieceSymbols[pieceData.type];
                     if (pieceData.color === 'b') {
                         square.classList.add('black-piece');
@@ -249,10 +253,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     square.textContent = pieceSymbol;
                 }
 
+                // Adiciona o event listener para cada casa
                 square.addEventListener('click', () => {
                     handleClick(square, r, c);
                 });
-                chessboard.appendChild(square);
+                chessboard.appendChild(square); // Adiciona a casa ao tabuleiro
             }
         }
     }
@@ -268,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Função de Reinício do Jogo ---
     function resetGame() {
-        chessGame.reset(); 
+        chessGame.reset(); // Reseta o estado do jogo na biblioteca chess.js
         
         isWhiteTurn = true;
         selectedSquare = null;
@@ -277,13 +282,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         whiteTime = initialTime;
         blackTime = initialTime;
-        updateTimerDisplay();
+        updateTimerDisplay(); // Atualiza a exibição dos timers
 
-        clearHighlights();
-        promotionOverlay.classList.add('hidden'); 
+        clearHighlights(); // Limpa quaisquer destaques de movimentos anteriores
+        promotionOverlay.classList.add('hidden'); // Esconde o overlay de promoção
 
-        renderBoard(); // Renderiza o tabuleiro aqui
-        startTimer();
+        renderBoard(); // Renderiza o tabuleiro com a posição inicial
+        startTimer(); // Inicia o timer
         console.log("Jogo Reiniciado!");
 
         // Se o bot joga com as brancas e a IA estiver habilitada, faz o primeiro movimento do bot
@@ -334,6 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const moves = game.moves({ verbose: true });
         
+        // Ordena os movimentos para otimização (capturas primeiro)
         const pieceValuesForSorting = {
             'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0 
         };
@@ -352,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 maxEval = Math.max(maxEval, evaluation);
                 alpha = Math.max(alpha, evaluation);
                 if (beta <= alpha) {
-                    break; 
+                    break; // Poda Beta
                 }
             }
             return maxEval;
@@ -365,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 minEval = Math.min(minEval, evaluation);
                 beta = Math.min(beta, evaluation);
                 if (beta <= alpha) {
-                    break;
+                    break; // Poda Alpha
                 }
             }
             return minEval;
@@ -378,12 +384,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let bestValue;
         const originalTurn = game.turn(); 
 
-        if (originalTurn === 'w') { 
+        if (originalTurn === 'w') { // Se for o turno das brancas (maximizando)
             bestValue = -Infinity;
-        } else {
+        } else { // Se for o turno das pretas (minimizando)
             bestValue = Infinity;
         }
 
+        // Ordena os movimentos para pesquisa mais eficiente (capturas primeiro)
         const pieceValuesForSorting = { 'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 0 };
         possibleMoves.sort((a, b) => {
             const aCaptureValue = a.captured ? pieceValuesForSorting[a.captured.toLowerCase()] : 0;
@@ -392,16 +399,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         for (const move of possibleMoves) {
-            game.move(move); 
+            game.move(move); // Faz o movimento
+            // A chamada para minimax é com o jogador oposto e a profundidade reduzida
             const evaluation = minimax(game, depth - 1, -Infinity, Infinity, originalTurn === 'b' ? true : false); 
-            game.undo(); 
+            game.undo(); // Desfaz o movimento
 
             if (originalTurn === 'w') {
                 if (evaluation > bestValue) {
                     bestValue = evaluation;
                     bestMove = move;
                 }
-            } else { 
+            } else { // Turno do bot (preto), minimizando
                 if (evaluation < bestValue) {
                     bestValue = evaluation;
                     bestMove = move;
@@ -425,14 +433,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (possibleMoves.length === 0) {
             console.log("Bot não tem movimentos válidos. Jogo já deve estar finalizado.");
-            checkGameStatus(); 
+            checkGameStatus(); // Verifica o status do jogo
             return;
         }
 
         if (depth === 0) {
+            // Dificuldade "Aleatório": escolhe um movimento qualquer
             chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
         } else {
-            const tempGame = new Chess(chessGame.fen()); 
+            // Dificuldade IA: usa Minimax para encontrar o melhor movimento
+            const tempGame = new Chess(chessGame.fen()); // Cria uma cópia do jogo para o cálculo da IA
             chosenMove = findBestMove(tempGame, depth);
         }
 
@@ -445,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const moveResult = chessGame.move(chosenMove);
             console.log("Bot moveu:", chosenMove);
 
-            renderBoard(); 
+            renderBoard(); // Renderiza o tabuleiro após o movimento do bot
 
             if (moveResult.captured) {
                 playCaptureSound();
@@ -455,9 +465,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 playMoveSound();
             }
 
-            checkGameStatus(); 
+            checkGameStatus(); // Verifica o status do jogo
             if (!isGameOver) {
-                switchTurn(); 
+                switchTurn(); // Passa o turno
             }
         } else {
             console.error("Erro: Bot não conseguiu encontrar um movimento válido.");
@@ -549,26 +559,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const startSquareName = toChessCoord(selectedSquare.row, selectedSquare.col);
             const endSquareName = toChessCoord(row, col);
 
-            // Tenta fazer o movimento (incluindo promoções automáticas exceto para o usuário)
             let moveResult;
             try {
-                // Se for um movimento de peão para a última fileira, prepare para promoção
+                // Verifica se o movimento é uma promoção de peão
                 const isPawnPromotion = chessGame.get(startSquareName).type === 'p' && 
                                         ((chessGame.turn() === 'w' && row === 0) || (chessGame.turn() === 'b' && row === 7));
 
                 if (isPawnPromotion) {
-                    // Armazena o movimento para promoção e mostra o overlay
+                    // Se for promoção, armazena o movimento e mostra o overlay para escolha do usuário
                     pawnToPromote = { from: startSquareName, to: endSquareName };
                     promotionOverlay.classList.remove('hidden');
                     pauseTimer();
                     playPromoteSound();
                     console.log("Peão pronto para promoção!");
-                    // Não executa o move final ainda, espera a escolha do usuário
+                    // Limpa a seleção e destaques, e aguarda a escolha do usuário no overlay
                     selectedSquare.element.classList.remove('selected');
                     clearHighlights();
                     selectedSquare = null;
                     return; // Sai da função, a promoção será tratada pelos botões do overlay
                 } else {
+                    // Se não for promoção, tenta o movimento normal
                     moveResult = chessGame.move({
                         from: startSquareName,
                         to: endSquareName
@@ -613,9 +623,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- LÓGICA DE PROMOÇÃO DE PEÃO ---
     promotionButtons.forEach(button => {
         button.addEventListener('click', (event) => {
-            if (!pawnToPromote) return;
+            if (!pawnToPromote) return; // Garante que há uma promoção pendente
 
-            const chosenPieceType = event.target.dataset.piece.toLowerCase(); 
+            const chosenPieceType = event.target.dataset.piece.toLowerCase(); // 'q', 'r', 'b', 'n'
             
             const promotionFinalMove = chessGame.move({
                 from: pawnToPromote.from,
@@ -630,7 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Erro ao finalizar a promoção.");
             }
 
-            promotionOverlay.classList.add('hidden');
+            promotionOverlay.classList.add('hidden'); // Esconde o overlay
             pawnToPromote = null; // Limpa o estado de promoção pendente
 
             checkGameStatus(); // Verifica o status do jogo após a promoção
@@ -641,15 +651,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Event Listeners dos Botões e Seleção ---
-    startGameButton.addEventListener('click', startGame); // Listener para o novo botão "Começar Jogo"
-    newGameButton.addEventListener('click', resetGame); // "Novo Jogo" agora chama resetGame diretamente
+    startGameButton.addEventListener('click', startGame); // Listener para o botão "Começar Jogo"
+    newGameButton.addEventListener('click', resetGame); // "Novo Jogo" chama resetGame diretamente
     
     difficultySelect.addEventListener('change', (event) => {
         currentDifficulty = event.target.value;
         console.log("Dificuldade da IA alterada para:", currentDifficulty);
-        // Não reseta automaticamente, o usuário clica em "Começar Jogo" ou "Novo Jogo"
+        // A dificuldade é alterada, mas o jogo só reseta ao clicar em "Novo Jogo" ou "Começar Jogo" novamente.
     });
 
     // Chamada inicial para mostrar os tempos iniciais e estado do jogo (antes de "Começar Jogo" ser clicado)
+    // O tabuleiro e timers estarão escondidos no início devido ao CSS 'hidden'.
     updateTimerDisplay(); 
 });
