@@ -31,6 +31,7 @@ h1 {
     justify-content: center; /* Centraliza horizontalmente */
     font-size: 40px; /* Tamanho da fonte para as peças */
     font-weight: bold; /* Deixa o símbolo mais "gordinho" */
+    cursor: pointer; /* Indica que a casa é clicável */
 }
 
 /* Cores das casas baseadas nas classes adicionadas pelo JavaScript */
@@ -51,4 +52,11 @@ h1 {
 .black-piece {
     color: #333; /* Cor para as peças pretas (um cinza bem escuro) */
     text-shadow: 1px 1px 2px rgba(255,255,255,0.5); /* Sombra para destacá-las */
+}
+
+/* Estilo para a casa selecionada */
+.square.selected {
+    background-color: #ffd700; /* Dourado */
+    border: 2px solid #daa520; /* Borda um pouco mais escura */
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
 }
