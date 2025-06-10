@@ -25,8 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- INSTÂNCIA DA BIBLIOTECA CHESS.JS ---
-    // A instância de Chess deve ser criada após a certeza de que a biblioteca foi carregada.
-    // Se você ainda vir 'Chess is not defined', o problema está no <script> do HTML ou no cache.
+    // Esta linha é a que falha se chess.min.js não foi carregado corretamente.
     const chessGame = new Chess();
 
     // --- CONFIGURAÇÃO DO BOT ---
@@ -262,11 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Função de Início de Jogo (Nova) ---
+    // --- Função de Início de Jogo ---
     function startGame() {
         startGameButton.classList.add('hidden'); // Esconde "Começar Jogo"
         newGameButton.classList.remove('hidden'); // Mostra "Novo Jogo"
-        gameContent.classList.remove('hidden'); // Mostra o tabuleiro e timers
+        gameContent.classList.remove('hidden');   // Mostra o tabuleiro e timers
         
         resetGame(); // Inicia um novo jogo limpo
     }
