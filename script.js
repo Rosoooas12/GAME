@@ -29,6 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let hasBlackRookKingSideMoved = false;  // Torre do lado do Rei preto (h8)
     let hasBlackRookQueenSideMoved = false; // Torre do lado da Rainha preta (a8)
 
+    // --- Variável para controle da Promoção de Peão ---
+    let pawnToPromote = null; // Guarda a posição do peão que precisa ser promovido
+
     // --- Funções Auxiliares para Regras de Movimento ---
 
     function isWhitePiece(piece) {
@@ -486,6 +489,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Função que lida com o clique em uma casa do tabuleiro ---
     function handleClick(squareElement, row, col) {
+        // Bloqueia cliques se houver uma promoção pendente
+        if (pawnToPromote) {
+            console.log("Promoção de peão pendente. Escolha uma peça para continuar.");
+            return; // Não permite nenhuma outra interação até a promoção ser resolvida
+        }
+
         const pieceInSquare = boardState[row][col];
 
         if (!selectedSquare) {
@@ -515,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Subcaso 2b: Clicou em outra casa para tentar mover a peça selecionada.
                 const startRow = selectedSquare.row;
-                const startCol = selectedSquare.col;
+                const startCol = selectedSquare.col; // Corrigido de selectedCol.col para selectedSquare.col
                 const endRow = row;
                 const endCol = col;
 
@@ -566,7 +575,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                     } else { // É um movimento normal (não é roque)
-                        const capturedPiece = boardState[endRow][endCol]; // Captura a peça se houver uma na casa de destino
+                        // A peça capturada é sobrescrita, então não precisamos armazená-la para fins de captura normal
+                        // const capturedPiece = boardState[endRow][endCol]; // Pode ser usado para exibir mensagens de captura
 
                         // Move a peça (lógica)
                         boardState[endRow][endCol] = pieceToMove;
@@ -586,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     // Remove a classe 'selected' da casa inicial APÓS o movimento (para Rei ou qualquer peça)
                     selectedSquare.element.classList.remove('selected'); 
-                    // === Fim da Realização do Movimento ===
+                    // === Fim da Realização do Movimento (normal ou roque) ===
                     
                     // --- ATUALIZAR STATUS DE MOVIMENTO PARA ROQUE ---
                     // Registra que o Rei ou as Torres se moveram, impedindo futuros roques com essas peças.
@@ -607,19 +617,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     // --- FIM DA ATUALIZAÇÃO DO STATUS DE MOVIMENTO ---
 
-                    selectedSquare = null; // Desseleciona a peça
-                    clearHighlights();     // Limpa os destaques das casas
+                    // Sempre limpa os destaques e o selectedSquare
+                    clearHighlights();
+                    selectedSquare = null;
 
-                    // Troca o turno para o próximo jogador
-                    isWhiteTurn = !isWhiteTurn;
-                    console.log(`Turno agora é do jogador ${isWhiteTurn ? 'Branco' : 'Preto'}.`);
+                    // --- VERIFICAÇÃO DE PROMOÇÃO DE PEÃO ---
+                    // A promoção só acontece para peões que chegam na última fileira
+                    if ((pieceToMove === '♙' && endRow === 0) || (pieceToMove === '♟' && endRow === 7)) {
+                        pawnToPromote = { r: endRow, c: endCol, piece: pieceToMove }; // Armazena a info do peão
+                        document.getElementById('promotion-overlay').classList.remove('hidden'); // Mostra o overlay
+                        // NOTA: O turno NÃO é trocado aqui. Ele será trocado APENAS após a escolha da promoção.
+                        console.log("Peão pronto para promoção!");
+                    } else {
+                        // Se não há promoção, troca o turno normalmente
+                        isWhiteTurn = !isWhiteTurn;
+                        console.log(`Turno agora é do jogador ${isWhiteTurn ? 'Branco' : 'Preto'}.`);
 
-                    // Verifica se o REI DO JOGADOR CUJO TURNO AGORA É está em xeque
-                    const currentPlayerKingColor = isWhiteTurn ? 'white' : 'black';
-                    if (isKingInCheck(currentPlayerKingColor)) {
-                        console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
-                        // FUTURAMENTE: Aqui você pode adicionar um indicador visual mais forte de xeque
-                        // e/ou verificar xeque-mate.
+                        // E verifica se o rei do NOVO jogador está em xeque
+                        const currentPlayerKingColor = isWhiteTurn ? 'white' : 'black';
+                        if (isKingInCheck(currentPlayerKingColor)) {
+                            console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
+                            // FUTURAMENTE: Aqui você pode adicionar um indicador visual mais forte de xeque
+                            // e/ou verificar xeque-mate.
+                        }
                     }
 
                 } else {
@@ -631,4 +651,63 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-});
+
+    // --- LÓGICA DE PROMOÇÃO DE PEÃO ---
+    const promotionOverlay = document.getElementById('promotion-overlay');
+    const promotionButtons = document.querySelectorAll('.promotion-choices button');
+
+    promotionButtons.forEach(button => {
+        button.addEventListener('click', (event) => {
+            if (!pawnToPromote) return; // Nenhuma promoção pendente
+
+            const chosenPieceType = event.target.dataset.piece; // Q, R, B, N
+            const promotedPieceColor = getPieceColor(pawnToPromote.piece);
+
+            let newPieceSymbol;
+            // Mapeia o tipo de peça para o símbolo Unicode correto (branco ou preto)
+            if (promotedPieceColor === 'white') {
+                switch (chosenPieceType) {
+                    case 'Q': newPieceSymbol = '♕'; break;
+                    case 'R': newPieceSymbol = '♖'; break;
+                    case 'B': newPieceSymbol = '♗'; break;
+                    case 'N': newPieceSymbol = '♘'; break;
+                }
+            } else { // Black piece
+                switch (chosenPieceType) {
+                    case 'Q': newPieceSymbol = '♛'; break;
+                    case 'R': newPieceSymbol = '♜'; break;
+                    case 'B': newPieceSymbol = '♝'; break;
+                    case 'N': newPieceSymbol = '♞'; break;
+                }
+            }
+
+            // Atualiza o boardState (lógica do tabuleiro)
+            boardState[pawnToPromote.r][pawnToPromote.c] = newPieceSymbol;
+
+            // Atualiza o visual do tabuleiro
+            const promotedSquareElement = document.getElementById(`sq-${pawnToPromote.r}-${pawnToPromote.c}`);
+            promotedSquareElement.textContent = newPieceSymbol;
+            // Garante que a cor da nova peça esteja correta
+            promotedSquareElement.classList.remove('white-piece', 'black-piece');
+            if (promotedPieceColor === 'white') {
+                promotedSquareElement.classList.add('white-piece');
+            } else {
+                promotedSquareElement.classList.add('black-piece');
+            }
+
+            promotionOverlay.classList.add('hidden'); // Esconde o overlay
+            pawnToPromote = null; // Limpa o peão pendente
+
+            // Agora sim, troca o turno APÓS a promoção ser concluída
+            isWhiteTurn = !isWhiteTurn;
+            console.log(`Promoção concluída. Turno agora é do jogador ${isWhiteTurn ? 'Branco' : 'Preto'}.`);
+
+            // E verifica se o rei do NOVO jogador está em xeque após a promoção
+            const currentPlayerKingColor = isWhiteTurn ? 'white' : 'black';
+            if (isKingInCheck(currentPlayerKingColor)) {
+                console.log(`Rei ${currentPlayerKingColor} está em XEQUE!`);
+            }
+        });
+    });
+
+}); // Fechamento final do DOMContentLoaded

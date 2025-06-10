@@ -1,15 +1,12 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xadrez Simples</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <h1>Xadrez Simples</h1>
-    <div id="chessboard">
+<div id="promotion-overlay" class="hidden">
+        <div class="promotion-choices">
+            <p>Escolha a peça para promover:</p>
+            <button id="promote-queen" data-piece="Q">♕</button>
+            <button id="promote-rook" data-piece="R">♖</button>
+            <button id="promote-bishop" data-piece="B">♗</button>
+            <button id="promote-knight" data-piece="N">♘</button>
         </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
