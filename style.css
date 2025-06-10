@@ -1,10 +1,10 @@
 body {
     font-family: Arial, sans-serif;
     display: flex;
-    flex-direction: column; /* Alinha os elementos em coluna */
-    align-items: center;    /* Centraliza horizontalmente */
-    justify-content: center; /* Centraliza verticalmente se houver espaço */
-    min-height: 100vh;      /* Garante que o body ocupe a altura total da tela */
+    flex-direction: column; 
+    align-items: center;    
+    justify-content: center; 
+    min-height: 100vh;      
     margin: 0;
     background-color: #f0f0f0;
 }
@@ -13,7 +13,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px; /* Espaço entre os elementos filhos */
+    gap: 20px; 
     padding: 20px;
     background-color: #ffffff;
     border-radius: 8px;
@@ -28,7 +28,7 @@ h1 {
 .controls {
     display: flex;
     align-items: center;
-    gap: 15px; /* Espaço entre o botão e o seletor */
+    gap: 15px; 
 }
 
 .controls button {
@@ -63,8 +63,8 @@ h1 {
 .timers {
     display: flex;
     justify-content: space-around;
-    width: 100%; /* Ajusta a largura para o container */
-    max-width: 480px; /* Mesma largura do tabuleiro para alinhamento */
+    width: 100%; 
+    max-width: 480px; 
     font-size: 1.1em;
     font-weight: bold;
     margin-bottom: 10px;
@@ -74,13 +74,13 @@ h1 {
 }
 
 .timer {
-    flex: 1; /* Distribui o espaço igualmente */
+    flex: 1; 
     text-align: center;
     padding: 5px;
 }
 
 .active-timer {
-    background-color: #a0d4ff; /* Cor para o timer do jogador atual */
+    background-color: #a0d4ff; 
     border-radius: 3px;
 }
 
@@ -90,15 +90,15 @@ h1 {
     padding: 5px;
     background-color: #d0efff;
     border-radius: 3px;
-    margin: 0 10px; /* Espaço entre os timers e o indicador de turno */
+    margin: 0 10px; 
 }
 
 .chessboard {
     display: grid;
     grid-template-columns: repeat(8, 60px);
     grid-template-rows: repeat(8, 60px);
-    width: 480px; /* 8 * 60px */
-    height: 480px; /* 8 * 60px */
+    width: 480px; 
+    height: 480px; 
     border: 2px solid #333;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
@@ -125,11 +125,11 @@ h1 {
 }
 
 .selected {
-    background-color: #ffda66; /* Amarelo para casa selecionada */
+    background-color: #ffda66; 
 }
 
 .highlight-move {
-    background-color: #a7d975; /* Verde para movimentos válidos */
+    background-color: #a7d975; 
 }
 
 /* Estilos para as peças */
@@ -180,7 +180,7 @@ h1 {
     border: 1px solid #ccc;
     padding: 10px 15px;
     margin: 5px;
-    font-size: 30px; /* Tamanho grande para as peças de promoção */
+    font-size: 30px; 
     cursor: pointer;
     border-radius: 5px;
     transition: background-color 0.2s ease;
@@ -188,4 +188,9 @@ h1 {
 
 .promotion-choices button:hover {
     background-color: #e0e0e0;
+}
+
+/* NOVA CLASSE PARA ESCONDER ELEMENTOS */
+.hidden {
+    display: none !important; /* Usar !important para garantir que sobrescreva outras regras de display */
 }

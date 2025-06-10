@@ -10,7 +10,9 @@
     <div class="game-container">
         <h1>Jogo de Xadrez</h1>
         <div class="controls">
-            <button id="new-game-button">Novo Jogo</button>
+            <button id="start-game-button">Começar Jogo</button> 
+            <button id="new-game-button" class="hidden">Novo Jogo</button> 
+            
             <label for="difficulty-select">Dificuldade da IA:</label>
             <select id="difficulty-select">
                 <option value="random">Aleatório</option>
@@ -19,12 +21,15 @@
                 <option value="hard">Difícil (IA)</option>
             </select>
         </div>
-        <div class="timers">
-            <div id="white-timer" class="timer">Brancas: 05:00</div>
-            <div id="turn-indicator">Turno: Brancas</div>
-            <div id="black-timer" class="timer">Pretas: 05:00</div>
+
+        <div id="game-content" class="hidden"> 
+            <div class="timers">
+                <div id="white-timer" class="timer">Brancas: 05:00</div>
+                <div id="turn-indicator">Turno: Brancas</div>
+                <div id="black-timer" class="timer">Pretas: 05:00</div>
+            </div>
+            <div id="chessboard" class="chessboard"></div>
         </div>
-        <div id="chessboard" class="chessboard"></div>
     </div>
 
     <div id="promotion-overlay" class="hidden">
